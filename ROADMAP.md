@@ -155,10 +155,13 @@ agency-agents preserve compiler.
 
 ---
 
-## v0.5 — Kanban Runtime
+## v0.5 — Kanban Runtime and Fleet Mode
 
-**Goal**: Built-in Kanban board for task handoff between agents.
+**Goal**: Built-in Kanban board for task handoff between agents. First
+version of Repo Fleet Mode — ingest an existing repo, create a fleeted
+workspace, and run a PR-based team workflow.
 
+### Kanban Runtime
 - `hermes-fleet task create` — create a task
 - `hermes-fleet task assign <agent>` — assign task to agent
 - `hermes-fleet task handoff <from> <to>` — handoff with validation
@@ -166,6 +169,18 @@ agency-agents preserve compiler.
 - Task contract validation (required inputs/outputs)
 - Blocker reporting and escalation
 - Orchestrator dashboard (terminal-based)
+
+### Fleet Mode (New Project)
+- `hermes-fleet fleet new "<goal>"` — create new fleeted repo from goal
+- Team proposal from goal only (no fingerprint needed)
+- Auto-create fleeted repo on GitHub
+
+### Fleet Mode (Existing Repo)
+- `hermes-fleet fleet ingest <repo-url> "<goal>"` — ingest existing repo
+- Read-only source clone, fleeted repo creation
+- Repository fingerprint generation
+- Team proposal from fingerprint + goal
+- First issue auto-created for orchestrator
 
 ---
 

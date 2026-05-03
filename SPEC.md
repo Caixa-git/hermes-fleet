@@ -703,3 +703,65 @@ All tests use mocked inputs. No real AI API calls, Docker execution, or Hermes a
 | Safety Invariant Tests | Hard rules that can never be violated under any valid configuration |
 | Deterministic Allocation Tests | Same input → identical output across multiple runs |
 | Handoff Validation Tests | Handoff contracts enforce their validation rules at runtime |
+
+---
+
+## 16. Repo Fleet Mode (v0.5+)
+
+See `REPO_FLEET_MODE.md` for the complete design. This section
+summarizes the SPEC-relevant aspects.
+
+### 16.1 New Data Types
+
+**Repository Fingerprint** — stored in `.fleet/fingerprint.yaml`:
+
+| Field | Type | Source |
+|-------|------|--------|
+| `fingerprint.source_repository` | string (URL) | User-provided repo URL |
+| `fingerprint.source_ref` | string | Default: "main" |
+| `fingerprint.language.primary` | string | Detected from repo contents |
+| `fingerprint.complexity.lines_of_code` | integer | Counted from repo |
+| `fingerprint.security_posture.has_security_policy` | boolean | File detection |
+| `fingerprint.risk_flags` | list of strings | Pattern matching |
+
+**Merge Gate Config** — stored in `.fleet/merge-gate.yaml`:
+
+| Field | Type | Default |
+|-------|------|---------|
+| `auto_merge.low_risk` | boolean | true |
+| `auto_merge.low_risk.require_ci` | boolean | true |
+| `auto_merge.medium_risk` | boolean | true |
+| `auto_merge.medium_risk.require_review` | boolean | true |
+| `human_approval.high_risk` | boolean | true (always blocks) |
+| `never_auto_merge_patterns` | list of strings | `[".env", "*secret*", "deploy/*", ".github/workflows/*"]` |
+
+### 16.2 Fleet Mode CLI (Future)
+
+```text
+hermes-fleet fleet new "<goal>"                  # New Project Mode
+hermes-fleet fleet ingest <repo-url> "<goal>"    # Existing Repo Mode
+hermes-fleet fleet status                        # Show fleet state
+hermes-fleet fleet fingerprint                   # Regenerate fingerprint
+```
+
+### 16.3 GitHub API Integration
+
+Fleet Mode requires a GitHub token with these scopes:
+
+| Scope | Required For |
+|-------|-------------|
+| `repo` | Create fleeted repo, push branches, create PRs |
+| `issues:write` | Create issues in fleeted repo |
+| `pull_requests:write` | Create and review PRs |
+
+The token is stored in `.fleet/github-token` (never in `.env` or
+in any generated file). It is used only by the Fleet Orchestrator agent.
+
+### 16.4 Safety Invariants
+
+- Source repo is never modified (read-only clone)
+- Fleeted repo starts with empty secrets and no deployment config
+- Main branch direct push is forbidden (branch protection enforced)
+- High-risk changes always require human approval
+- `.env` and secret-like files are never auto-merged
+- All agent actions are audited via GitHub Issues and PRs
