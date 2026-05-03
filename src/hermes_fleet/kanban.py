@@ -113,6 +113,25 @@ def _render_handoff_template(policy: dict = None) -> str:
 <!-- What prevented full completion -->
 - None
 
+---
+
+## 🧠 Context Handoff (optional)
+
+> This section is not validated. It exists to carry context that doesn't
+> fit structured fields. Filling it builds trust; skipping it doesn't
+> block completion.
+
+### Decisions Considered
+<!-- Key choices and why this path was taken -->
+
+### Open Questions
+<!-- Unresolved issues the receiver should know about -->
+
+### Confidence Signals
+<!-- What feels solid, and what feels uncertain -->
+
+---
+
 ## Recommended Next Agent
 <!-- Who should take this work next -->
 - 

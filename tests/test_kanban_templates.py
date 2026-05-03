@@ -76,3 +76,12 @@ class TestKanbanTemplates:
         template = generate_handoff_note()
         assert "No role drift" in template, "Handoff template must include role drift check"
         assert "Forbidden paths were not modified" in template
+
+    def test_handoff_template_has_context_section(self):
+        """Context Handoff section is present and clearly optional."""
+        template = generate_handoff_note()
+        assert "Context Handoff (optional)" in template
+        assert "Decisions Considered" in template
+        assert "Open Questions" in template
+        assert "Confidence Signals" in template
+        assert "not validated" in template
