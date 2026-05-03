@@ -84,169 +84,117 @@
 
 ---
 
-## v0.3 — Container Lifecycle Management (Current)
+## v0.3 — Container Lifecycle Management (Superseded)
 
-**Goal**: Actually run the generated containers with full isolation — memory, filesystem, network.
-**Isolation facet**: Boundary (container lifecycle, volume persistence, network isolation)
+**Note**: v0.3 and v0.4 are superseded by v0.5 (Solitude Runtime).
+The old long-running-container model (N+1 containers, concurrent, networked) is replaced
+by a sequential 1-shot container pipeline. See `docs/design/v0.5-solitude-runtime.md`.
 
-### Container Lifecycle
-- [x] `hermes-fleet up` — start the fleet (docker compose up)
-- [x] `hermes-fleet down` — stop the fleet
-- [x] `hermes-fleet status` — check agent health (container-level: running/stopped/crashed)
-- [x] `hermes-fleet logs <agent>` — view agent logs
-- [x] `hermes-fleet restart <agent>` — restart individual agent
-- [x] Container health checks and restart policies
+### What was built
+- [x] `hermes-fleet up/down/status/logs/restart` — container lifecycle CLI
 - [x] Volume persistence management
-- [x] Per-agent network: sub-agents default to `network: none`, orchestrator has network access
+- [x] Per-agent network isolation
+- [x] Hermetic pipeline test
 
-### Validation
-- [x] `hermes-fleet validate` extended with handoff contract required_fields check:
-  every handoff contract must define at least one required_field
-
----
-
-## v0.4 — Isolation Runtime
-
-**Goal**: Three-layer isolation enforcement at runtime — memory, communication, and network.
-**Isolation facet**: All facets — the runtime makes isolation real.
-
-### Memory Isolation
-- [x] Per-agent memory volumes: agent A cannot read agent B's memory
-- [x] Memory persistence across restarts (volume lifecycle)
-- [x] Memory wipe on agent retirement
-
-### Communication Isolation
-- [x] Gateway routing: user messages go to orchestrator only
-- [x] Sub-agents cannot send messages outside their container
-- [x] All agent-to-any communication proxied through orchestrator
-- [x] No direct agent-to-agent messaging
-
-### Network Isolation
-- [x] Role-based network policy: `isolated` / `control-plane` / `proxy` / `extern`
-- [x] Default for sub-agents: `network: none`
-- [x] Orchestrator sets network policy at team composition time
-- [x] Temporary network access requests: agent → orchestrator → user approval → time-limited grant → auto-revoke (v0.5 orchestrator integration)
-
-### Agent Runtime
-- [x] Agent lifecycle state machine: CREATED → ACTIVE → IDLE → COMPLETED → ARCHIVED
-- [x] IDLE agents reject messages; orchestrator must wake them explicitly
-- [x] Token budget per session (`max_iterations_per_session`)
-
-### Handoff Contract Runtime
-- [x] Handoff contract validation at handoff time (required fields, role checks)
-- [x] Handoff rejection with orchestrator notification
-- [x] `from_roles` and `allowed_next_roles` enforcement
+### Why superseded
+The solitude model (zero containers at rest, one container at a time, file-only handoff)
+provides stronger isolation with less complexity. Container lifecycle → obsolete.
+Volume management → obsolete. Network isolation → obsolete.
 
 ---
 
-## v0.5 — Orchestrator Integration
+## v0.4 — Isolation Runtime (Superseded)
 
-**Goal**: The orchestrator becomes the sole communication channel. All fleet interaction passes through it.
-**Isolation facet**: Orchestrator — the entity that can cross isolation boundaries.
+See v0.3 note. v0.4 runtime isolation (memory/communication/network layers) is replaced
+by solitude (no coexistence → no isolation machinery needed).
 
-- **Orchestrator as sole intermediary**: no direct agent-to-agent, no agent-to-user
-- **Task assignment**: orchestrator assigns tasks to sub-agents based on role and capacity
-- **Completion flow**: agent completes task → reports to orchestrator → orchestrator verifies and aggregates
-- **User approval gate**: orchestrator presents aggregated results → user approves or redirects
-- **Direction adjustment**: user rejects or redirects → orchestrator reassigns with updated instructions
-- **Orchestrator SOUL.md** with fleet management capabilities: assign, monitor, verify, report
-- **Stalled agent detection** — agents exceeding budget or producing no output
-- **Network exception handling**: sub-agent requests temp access → orchestrator asks user → time-limited grant
-- **Terminal-based orchestrator dashboard** — real-time view of agent states, tasks, pending approvals
+### What was built
+- [x] Memory isolation (per-agent volumes, volume lifecycle)
+- [x] Communication isolation (gateway routing, port lockdown)
+- [x] Network isolation (4-mode policy, temp access infrastructure)
+- [x] Agent lifecycle state machine (CREATED → ARCHIVED)
+- [x] Handoff contract runtime validation
+- [x] Token budget per session
+- [x] Dedicated test suite (83 tests)
 
-### Interaction Model
-
-```
-Agent ──task complete──→ Orchestrator (verify + aggregate)
-                           Orchestrator ──report──→ User
-                           User ──approve or redirect──→ Orchestrator
-                           Orchestrator ──next task or reassign──→ Agent
-```
-
-- Orchestrator has full autonomy over sub-agent task assignment and monitoring
-- User interaction is limited to: reviewing completed work, approving results, giving direction
-- No per-agent approval gates. The orchestrator is the single point of user contact
-- Policy violations are handled by policy.yaml enforcement, not by user approval
+### Why superseded
+v0.3 + v0.4 solved a problem that no longer exists. If agents never coexist,
+there is nothing to isolate. Network policy, port publishing, volume ACLs,
+gateway routing — all unnecessary in the solitude model.
 
 ---
 
-## v0.6 — Policy Enforcement and Recovery
+## v0.5 — Solitude Runtime (Current)
 
-**Goal**: Runtime enforcement of isolation policies. Violation detection, escalation, and recovery.
-**Isolation facet**: Boundary — the walls are enforced, not just declared.
+**Goal**: Sequential pipeline of 1-shot `docker run --rm` agents.
+Zero containers at rest. One agent at a time. Complete solitude.
+File-only handoff orchestrated by a deterministic scheduler.
 
-### Policy Enforcement
-- Policy enforcer sidecar per container
-- Filesystem write allow/deny enforcement
-- Command execution allow/deny enforcement
-- Network access enforcement (allowlist-based)
-- Secret injection with allowlist enforcement
-- Violation detection and logging
-- Soft/medium/hard/critical violation levels
-- Isolation drift detection and alerting
+**Philosophy**: Not isolation (coexistence with barriers) but solitude
+(non-existence). An agent runs, finishes, vanishes. The next agent
+has no evidence the previous one existed.
 
-### Runtime Handoff Validation
-- Role-specific handoff validation against required outputs
-- Isolation audit: periodic verification that agent A cannot access agent B's data
+**Design doc**: `docs/design/v0.5-solitude-runtime.md`
 
-### Recovery and Self-Healing
-- Soft violations: request correction, document in audit log
-- Medium violations: block task, notify orchestrator
-- Hard violations: pause container, preserve workspace snapshot, require review
-- Critical violations: kill container, redact output, create security incident
-- Workspace snapshot preservation for forensic analysis
+### Pipeline Engine (Kanban-inspired)
+- [ ] Scheduler: sequential execution of pipeline steps
+- [ ] Task runner: `docker run --rm` abstraction with env/policy injection
+- [ ] Step state machine: PENDING → RUNNING → DONE / FAILED / BLOCKED
+- [ ] Retry with backoff (configurable per step)
+- [ ] Blocked state: pause pipeline, notify user, resume later
+- [ ] Execution log per step under `.fleet/runs/<id>/`
 
----
+### Handoff Contract as I/O Schema
+- [ ] HandoffContract rewritten: source_output → transform → target_input
+- [ ] `validate_handoff_doc()` → pipeline input/output validation
+- [ ] Automated handoff data transformation by scheduler
+- [ ] No `from_roles` / `allowed_next_roles` (orchestrator-only communication)
 
-## v0.7 — Kanban Runtime and Fleet Mode
+### Specialized Agent Injection (agency-agents)
+- [ ] Per-step SOUL.md injection (role identity from upstream)
+- [ ] Per-step policy.yaml injection (task types, filesystem, commands)
+- [ ] Per-step handoff contract injection (I/O expectations)
+- [ ] Provenance metadata preserved in execution logs
 
-**Goal**: Task visualization and fleet lifecycle management. Repo ingestion for existing projects.
-**Isolation facet**: Completion — structured, visible, auditable work flow.
+### Team Composition
+- [ ] Planner evolves: keyword match → pipeline generation
+- [ ] Team presets include `pipeline` field (execution order)
+- [ ] Dependency analysis: from-scratch vs existing-repo ordering
+- [ ] User-approvable pipeline plan before execution
 
-### Kanban Runtime
-- `hermes-fleet task create` — create a task
-- `hermes-fleet task assign <agent>` — assign task to agent
-- `hermes-fleet task handoff <from> <to>` — handoff with validation
-- `hermes-fleet task complete <id>` — complete task with gates
-- Task contract validation (required inputs/outputs)
-- Blocker reporting and escalation
-- Kanban board visualization (terminal-based web UI)
+### CLI
+- [ ] `hermes-fleet plan "<goal>"` — generate pipeline with contracts
+- [ ] `hermes-fleet run` — execute pipeline
+- [ ] `hermes-fleet status` — show pipeline progress
+- [ ] `hermes-fleet logs <step>` — per-step logs
+- [ ] `hermes-fleet resume` — continue from blocked step
 
-### Fleet Mode (New Project)
-- `hermes-fleet fleet new "<goal>"` — create new fleeted repo from goal
-- Team proposal from goal only
-- Auto-create fleeted repo on GitHub
-
-### Fleet Mode (Existing Repo)
-- `hermes-fleet fleet ingest <repo-url> "<goal>"` — ingest existing repo
-- Read-only source clone, fleeted repo creation
-- Repository fingerprint generation
-- Team proposal from fingerprint + goal
-- First issue auto-created for orchestrator
+### Testing
+- [ ] Scheduler unit tests (mocked docker)
+- [ ] Task runner unit tests
+- [ ] Pipeline integration test (end-to-end with actual docker)
+- [ ] Handoff contract I/O schema tests
 
 ---
 
-## v1.0 — Production-Ready
+## v0.6 — Recovery and Observability
 
-- CI/CD integration (GitHub Actions, automated releases)
-- Published to PyPI
-- Comprehensive documentation
-- Web dashboard (fleet overview, agent logs, Kanban board)
-- Secret management integration (no placeholders)
-- Audit log export
-- Multiple parallel active fleets
-- Helm chart for Kubernetes deployment
-- Agency-agents lifecycle management: full update workflow
-- Role-fidelity certification: guaranteed provenance chain
+**Goal**: Handle failures gracefully. Surface pipeline state clearly.
+
+- [ ] Per-step timeout with SIGKILL escalation (from Kanban: max_runtime)
+- [ ] Workspace retention policy (auto-clean old runs)
+- [ ] Post-mortem report: which steps failed, why, how to retry
+- [ ] Rich status output: execution timeline per step
+- [ ] `hermes-fleet retry --step <id>` — retry a failed step
 
 ---
 
-## Future Ideas
+## v0.7 — Multi-Pipeline and Repo Ingestion
 
-- **Self-healing agents**: detect violations and recover automatically
-- **Dynamic scaling**: add/remove agents mid-project
-- **Fleet templates**: save and share team configurations
-- **Marketplace**: community role definitions
-- **Hermes-native mode**: integrate directly with Hermes Agent gateway
-- **Multi-project orchestration**: coordinate across multiple repositories
-- **AI onboarding provider**: LLM-backed team recommendation (removed from v0.4 scope)
+**Goal**: Run multiple pipelines. Ingest existing repositories.
+
+- [ ] `hermes-fleet fleet new "<goal>"` — create new project from goal
+- [ ] `hermes-fleet fleet ingest <repo-url> "<goal>"` — analyze existing repo
+- [ ] Repo fingerprinting for pipeline customization
+- [ ] Parallel pipeline execution (experimental — limited by solitude model)
+- [ ] Pipeline templates: save and reuse successful pipelines

@@ -1,4 +1,4 @@
-# Hermes Fleet — Technical Specification v0.4
+# Hermes Fleet — Technical Specification v0.5
 
 ---
 
