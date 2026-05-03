@@ -130,6 +130,36 @@ def run_safe_defaults_check(generated_dir: Path, verbose: bool = False) -> List[
         r("passed", "Orchestrator cannot write app code by default")
 
     @_check
+    def orchestrator_has_kanban_only_workspace(r):
+        agents_dir = generated_dir / "agents"
+        if not agents_dir.exists():
+            r("skipped", "No agents directory")
+            return
+        orch_dir = agents_dir / "orchestrator"
+        if not orch_dir.exists():
+            r("skipped", "No orchestrator agent generated")
+            return
+        policy_path = orch_dir / "policy.yaml"
+        if not policy_path.exists():
+            r("skipped", "No orchestrator policy.yaml")
+            return
+        with open(policy_path) as f:
+            policy = yaml.safe_load(f) or {}
+        writable_paths = policy.get("filesystem", {}).get("writable_paths", [])
+        # Orchestrator workspace must be limited to kanban/fleet dirs only
+        allowed_kanban_patterns = [".fleet/**", "kanban/**"]
+        unexpected_paths = [p for p in writable_paths if p not in allowed_kanban_patterns]
+        if unexpected_paths:
+            r("failed", f"Orchestrator has non-kanban writable paths: {unexpected_paths}")
+            return
+        # Verify at least the expected kanban patterns exist
+        missing = [p for p in allowed_kanban_patterns if p not in writable_paths]
+        if missing:
+            r("failed", f"Orchestrator is missing expected kanban writable paths: {missing}")
+            return
+        r("passed", "Orchestrator has kanban_only workspace")
+
+    @_check
     def deployer_disabled_by_default(r):
         agents_dir = generated_dir / "agents"
         if not agents_dir.exists():
@@ -230,6 +260,7 @@ def run_safe_defaults_check(generated_dir: Path, verbose: bool = False) -> List[
         reviewer_is_readonly,
         security_reviewer_no_network,
         orchestrator_no_app_code_write,
+        orchestrator_has_kanban_only_workspace,
         deployer_disabled_by_default,
         no_production_secrets_injected,
         kanban_task_template_exists,

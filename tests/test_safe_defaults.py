@@ -135,11 +135,44 @@ class TestSafeDefaultsValidator:
         # Verify at least some passing results exist (but are filtered out)
         assert len(passing) > 0, "There should be passing checks to filter"
 
+    def test_orchestrator_kanban_only_workspace_passes(self, generated_dir):
+        """Orchestrator with kanban-only workspace passes the check."""
+        results = run_safe_defaults_check(generated_dir, verbose=True)
+        match = [
+            r for r in results
+            if "kanban_only" in r["check"].lower() or "kanban" in r["check"].lower()
+        ]
+        assert len(match) >= 1
+        for m in match:
+            assert m["status"] == "passed", f"Expected passed, got {m}"
+
+    def test_orchestrator_kanban_only_workspace_fails_on_app_code(self, generated_dir):
+        """Orchestrator with app code writable paths fails the check."""
+        orch_dir = generated_dir / "agents" / "orchestrator"
+        policy_path = orch_dir / "policy.yaml"
+        with open(policy_path) as f:
+            policy = yaml.safe_load(f) or {}
+        policy.setdefault("filesystem", {})["writable_paths"] = [".fleet/**", "kanban/**", "src/app"]
+        with open(policy_path, "w") as f:
+            yaml.dump(policy, f, default_flow_style=False)
+
+        results = run_safe_defaults_check(generated_dir, verbose=True)
+        match = [
+            r for r in results
+            if "kanban" in r["check"].lower() and r["status"] == "failed"
+        ]
+        assert len(match) >= 1, f"Expected at least one kanban check to fail, got: {[r for r in results if 'kanban' in r['check'].lower()]}"
+
 
 def _make_minimal_policy(agent_id: str) -> dict:
     """Create a minimal valid policy dict."""
     ro_agents = ["reviewer", "qa-tester", "technical-writer"]
     is_ro = agent_id in ro_agents
+    # Orchestrator gets kanban-only writable paths
+    if agent_id == "orchestrator":
+        writable = [".fleet/**", "kanban/**"]
+    else:
+        writable = [] if is_ro else ["docs/**"]
     return {
         "agent_id": agent_id,
         "role": agent_id.replace("-", " ").title(),
@@ -148,7 +181,7 @@ def _make_minimal_policy(agent_id: str) -> dict:
             "forbidden_task_types": ["deployment"],
         },
         "filesystem": {
-            "writable_paths": [] if is_ro else ["docs/**"],
+            "writable_paths": writable,
             "readonly_paths": ["**"],
             "forbidden_paths": [".env", "secrets/**"],
         },
