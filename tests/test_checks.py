@@ -37,7 +37,6 @@ def _make_service(overrides: dict = None) -> dict:
 def _make_compose(services: dict = None) -> dict:
     """Create a minimal valid compose dict."""
     return {
-        "version": "3.8",
         "services": services or {"test-svc": _make_service()},
         "volumes": {},
         "networks": {},

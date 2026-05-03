@@ -1,0 +1,15 @@
+# Permission preset: test_runner
+# Used by: qa-tester
+id: test_runner
+allowed_workspaces: readonly_or_test_tmp
+filesystem:
+  writable_paths:
+    - "tmp/**"
+    - "test-results/**"
+  readonly_paths:
+    - "**"
+  forbidden_paths:
+    - ".env"
+    - "secrets/**"
+network_access: none
+secret_allowlist: []

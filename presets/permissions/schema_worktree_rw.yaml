@@ -1,0 +1,18 @@
+# Permission preset: schema_worktree_rw
+# Used by: database-architect
+id: schema_worktree_rw
+allowed_workspaces: own_worktree_rw
+filesystem:
+  writable_paths:
+    - "db/**"
+    - "migrations/**"
+    - "schema/**"
+  readonly_paths:
+    - "**"
+  forbidden_paths:
+    - ".env.production"
+    - "infra/**"
+    - "frontend/**"
+network_access: package_registry
+secret_allowlist:
+  - DATABASE_URL_DEV

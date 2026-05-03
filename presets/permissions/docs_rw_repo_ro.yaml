@@ -1,0 +1,17 @@
+# Permission preset: docs_rw_repo_ro
+# Used by: technical-writer, product-manager, ux-designer
+id: docs_rw_repo_ro
+allowed_workspaces: docs_write
+filesystem:
+  writable_paths:
+    - "docs/**"
+    - "design/**"
+    - "README.md"
+  readonly_paths:
+    - "**"
+  forbidden_paths:
+    - ".env"
+    - "src/**"
+    - "other-agents/**"
+network_access: none
+secret_allowlist: []

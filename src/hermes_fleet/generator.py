@@ -3,7 +3,6 @@ Generator — assemble and render all agent configurations.
 """
 
 from pathlib import Path
-from typing import List
 
 import yaml
 

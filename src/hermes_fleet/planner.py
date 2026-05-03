@@ -2,8 +2,6 @@
 Planner — recommend a team based on a textual goal description.
 """
 
-from typing import Dict, Tuple
-
 from hermes_fleet.teams import load_team
 
 
@@ -21,7 +19,7 @@ _KEYWORD_TEAMS: list[tuple[list[str], str]] = [
 ]
 
 
-def recommend_team(goal: str) -> Tuple[str, dict]:
+def recommend_team(goal: str) -> tuple[str, dict]:
     """
     Analyze a goal string and recommend a team.
 

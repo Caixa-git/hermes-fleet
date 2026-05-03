@@ -2,7 +2,7 @@
 Kanban handoff contract template generation.
 """
 
-from typing import Dict, List
+from typing import Dict
 
 
 def generate_kanban_templates(policy: dict = None) -> Dict[str, str]:

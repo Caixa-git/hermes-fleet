@@ -1,0 +1,19 @@
+# Permission preset: backend_worktree_rw
+# Used by: backend-developer
+id: backend_worktree_rw
+allowed_workspaces: own_worktree_rw
+filesystem:
+  writable_paths:
+    - "backend/**"
+    - "api/**"
+    - "src/**"
+  readonly_paths:
+    - "**"
+  forbidden_paths:
+    - "frontend/**"
+    - "infra/**"
+    - ".env.production"
+network_access: package_registry
+secret_allowlist:
+  - DATABASE_URL_DEV
+  - OPENAI_API_KEY_DEV

@@ -219,7 +219,6 @@ def _make_minimal_compose(agents: list) -> dict:
         volumes[vol_name] = {"driver": "local"}
 
     return {
-        "version": "3.8",
         "services": services,
         "volumes": volumes,
         "networks": {

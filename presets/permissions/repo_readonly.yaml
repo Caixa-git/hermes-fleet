@@ -1,0 +1,14 @@
+# Permission preset: repo_readonly
+# Used by: reviewer, qa-tester, technical-writer (general-dev)
+id: repo_readonly
+allowed_workspaces: readonly
+filesystem:
+  writable_paths: []
+  readonly_paths:
+    - "**"
+  forbidden_paths:
+    - ".env"
+    - "secrets/**"
+    - "other-agents/**"
+network_access: none
+secret_allowlist: []

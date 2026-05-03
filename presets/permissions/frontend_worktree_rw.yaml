@@ -1,0 +1,19 @@
+# Permission preset: frontend_worktree_rw
+# Used by: frontend-developer
+id: frontend_worktree_rw
+allowed_workspaces: own_worktree_rw
+filesystem:
+  writable_paths:
+    - "frontend/**"
+    - "ui/**"
+    - "public/**"
+  readonly_paths:
+    - "**"
+  forbidden_paths:
+    - "backend/**"
+    - "infra/**"
+    - ".env*"
+network_access: package_registry
+secret_allowlist:
+  - PUBLIC_SUPABASE_URL
+  - PUBLIC_STRIPE_KEY

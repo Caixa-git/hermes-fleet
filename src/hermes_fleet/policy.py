@@ -2,101 +2,40 @@
 Policy — resolve permission presets and compose policy.yaml content.
 """
 
-from typing import Dict, List
+from pathlib import Path
+from typing import Dict
+
+import yaml
 
 from hermes_fleet.teams import load_role
 
-# Permission presets as Python data structures
-_PERMISSION_PRESETS: Dict[str, dict] = {
-    "orchestrator_safe": {
-        "allowed_workspaces": "kanban_only",
-        "filesystem": {
-            "writable_paths": [".fleet/**", "kanban/**"],
-            "readonly_paths": ["**"],
-            "forbidden_paths": ["src/**", "app/**", "**/application/**"],
-        },
-        "network_access": "control_plane_only",
-        "secret_allowlist": [],
-    },
-    "repo_readonly": {
-        "allowed_workspaces": "readonly",
-        "filesystem": {
-            "writable_paths": [],
-            "readonly_paths": ["**"],
-            "forbidden_paths": [".env", "secrets/**", "other-agents/**"],
-        },
-        "network_access": "none",
-        "secret_allowlist": [],
-    },
-    "docs_rw_repo_ro": {
-        "allowed_workspaces": "docs_write",
-        "filesystem": {
-            "writable_paths": ["docs/**", "design/**", "README.md"],
-            "readonly_paths": ["**"],
-            "forbidden_paths": [".env", "src/**", "other-agents/**"],
-        },
-        "network_access": "none",
-        "secret_allowlist": [],
-    },
-    "frontend_worktree_rw": {
-        "allowed_workspaces": "own_worktree_rw",
-        "filesystem": {
-            "writable_paths": ["frontend/**", "ui/**", "public/**"],
-            "readonly_paths": ["**"],
-            "forbidden_paths": ["backend/**", "infra/**", ".env*"],
-        },
-        "network_access": "package_registry",
-        "secret_allowlist": ["PUBLIC_SUPABASE_URL", "PUBLIC_STRIPE_KEY"],
-    },
-    "backend_worktree_rw": {
-        "allowed_workspaces": "own_worktree_rw",
-        "filesystem": {
-            "writable_paths": ["backend/**", "api/**", "src/**"],
-            "readonly_paths": ["**"],
-            "forbidden_paths": ["frontend/**", "infra/**", ".env.production"],
-        },
-        "network_access": "package_registry",
-        "secret_allowlist": ["DATABASE_URL_DEV", "OPENAI_API_KEY_DEV"],
-    },
-    "readonly_no_network": {
-        "allowed_workspaces": "readonly",
-        "filesystem": {
-            "writable_paths": [],
-            "readonly_paths": ["**"],
-            "forbidden_paths": [".env", "secrets/**", "other-agents/**"],
-        },
-        "network_access": "none",
-        "secret_allowlist": [],
-    },
-    "test_runner": {
-        "allowed_workspaces": "readonly_or_test_tmp",
-        "filesystem": {
-            "writable_paths": ["tmp/**", "test-results/**"],
-            "readonly_paths": ["**"],
-            "forbidden_paths": [".env", "secrets/**"],
-        },
-        "network_access": "none",
-        "secret_allowlist": [],
-    },
-    "schema_worktree_rw": {
-        "allowed_workspaces": "own_worktree_rw",
-        "filesystem": {
-            "writable_paths": ["db/**", "migrations/**", "schema/**"],
-            "readonly_paths": ["**"],
-            "forbidden_paths": [".env.production", "infra/**", "frontend/**"],
-        },
-        "network_access": "package_registry",
-        "secret_allowlist": ["DATABASE_URL_DEV"],
-    },
-}
+
+def _get_permissions_dir() -> Path:
+    """Return the presets/permissions directory."""
+    return Path(__file__).resolve().parent.parent.parent / "presets" / "permissions"
+
+
+def _load_permission_presets() -> Dict[str, dict]:
+    """Load all permission presets from presets/permissions/*.yaml."""
+    presets_dir = _get_permissions_dir()
+    presets: Dict[str, dict] = {}
+    if not presets_dir.exists():
+        return presets
+    for f in sorted(presets_dir.glob("*.yaml")):
+        preset_id = f.stem
+        with open(f) as fh:
+            data = yaml.safe_load(fh) or {}
+        presets[preset_id] = data
+    return presets
 
 
 def get_permission_preset(preset_id: str) -> dict:
-    """Get a permission preset by ID."""
-    preset = _PERMISSION_PRESETS.get(preset_id)
+    """Get a permission preset by ID from YAML files."""
+    presets = _load_permission_presets()
+    preset = presets.get(preset_id)
     if not preset:
         return {}
-    return preset.copy()
+    return dict(preset)
 
 
 def compose_policy(role_id: str) -> dict:
@@ -154,5 +93,8 @@ def compose_policy(role_id: str) -> dict:
 
 
 def list_presets() -> list[str]:
-    """List all available permission preset IDs."""
-    return sorted(_PERMISSION_PRESETS.keys())
+    """List all available permission preset IDs from YAML files."""
+    return sorted(
+        f.stem for f in _get_permissions_dir().glob("*.yaml")
+        if f.stem != "__init__"
+    )

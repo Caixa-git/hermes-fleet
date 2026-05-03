@@ -15,12 +15,14 @@ def _sanitize_name(name: str) -> str:
 def _select_network(agent_id: str, policy: dict) -> List[str]:
     """Select Docker Compose networks based on policy."""
     network_mode = policy.get("network", {}).get("mode", "none")
-    if network_mode == "none" or network_mode == "control_plane_only":
-        return ["fleet-no-net"]
+    if network_mode == "control_plane_only":
+        return ["fleet-control-plane"]
     elif network_mode == "package_registry":
         return ["fleet-control-plane"]
     elif network_mode == "web_readonly":
         return ["fleet-web"]
+    elif network_mode == "none":
+        return ["fleet-no-net"]
     else:
         return ["fleet-no-net"]
 
@@ -84,7 +86,6 @@ def generate_docker_compose(team_id: str, agents: List[str]) -> dict:
         volumes[volume_name] = {"driver": "local"}
 
     compose = {
-        "version": "3.8",
         "services": services,
         "volumes": volumes,
         "networks": networks,

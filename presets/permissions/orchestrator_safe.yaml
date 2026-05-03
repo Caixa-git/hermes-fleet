@@ -1,0 +1,16 @@
+# Permission preset: orchestrator_safe
+# Used by: orchestrator
+id: orchestrator_safe
+allowed_workspaces: kanban_only
+filesystem:
+  writable_paths:
+    - ".fleet/**"
+    - "kanban/**"
+  readonly_paths:
+    - "**"
+  forbidden_paths:
+    - "src/**"
+    - "app/**"
+    - "**/application/**"
+network_access: control_plane_only
+secret_allowlist: []

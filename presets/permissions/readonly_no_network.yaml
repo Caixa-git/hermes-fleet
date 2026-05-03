@@ -1,0 +1,14 @@
+# Permission preset: readonly_no_network
+# Used by: security-reviewer
+id: readonly_no_network
+allowed_workspaces: readonly
+filesystem:
+  writable_paths: []
+  readonly_paths:
+    - "**"
+  forbidden_paths:
+    - ".env"
+    - "secrets/**"
+    - "other-agents/**"
+network_access: none
+secret_allowlist: []

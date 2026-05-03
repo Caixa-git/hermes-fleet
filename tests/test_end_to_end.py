@@ -53,7 +53,6 @@ class TestEndToEnd:
 
         assert compose is not None
         assert "services" in compose
-        assert compose["version"] == "3.8"
 
     def test_output_is_deterministic(self, tmp_path):
         """Same input produces identical output."""
