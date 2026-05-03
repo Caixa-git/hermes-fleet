@@ -201,6 +201,25 @@ def generate(
         )
         raise typer.Exit(1)
 
+    # Cross-reference validation: all role permission_presets must resolve
+    from hermes_fleet.teams import _get_presets_dir
+
+    presets_dir = _get_presets_dir()
+    known_presets = {p.stem for p in (presets_dir / "permissions").glob("*.yaml")}
+    bad_presets = []
+    for agent_id in agents:
+        role_data = load_role(agent_id)
+        preset = role_data.get("permission_preset", "")
+        if preset and preset not in known_presets:
+            bad_presets.append(f"{agent_id} → '{preset}'")
+    if bad_presets:
+        console.print(
+            "[red]✗ Unknown permission preset(s):[/red]"
+        )
+        for bp in bad_presets:
+            console.print(f"  [red]  {bp}[/red]")
+        raise typer.Exit(1)
+
     # Generate
     output_dir = generate_fleet(
         project_dir=project_dir,
