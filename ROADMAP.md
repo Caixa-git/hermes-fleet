@@ -111,31 +111,31 @@
 **Isolation facet**: All facets — the runtime makes isolation real.
 
 ### Memory Isolation
-- Per-agent memory volumes: agent A cannot read agent B's memory
-- Memory persistence across restarts (volume lifecycle)
-- Memory wipe on agent retirement
+- [x] Per-agent memory volumes: agent A cannot read agent B's memory
+- [x] Memory persistence across restarts (volume lifecycle)
+- [x] Memory wipe on agent retirement
 
 ### Communication Isolation
-- Gateway routing: user messages go to orchestrator only
-- Sub-agents cannot send messages outside their container
-- All agent-to-any communication proxied through orchestrator
-- No direct agent-to-agent messaging
+- [x] Gateway routing: user messages go to orchestrator only
+- [x] Sub-agents cannot send messages outside their container
+- [x] All agent-to-any communication proxied through orchestrator
+- [x] No direct agent-to-agent messaging
 
 ### Network Isolation
-- Role-based network policy: `isolated` / `outbound-only` / `proxy`
-- Default for sub-agents: `network: none`
-- Orchestrator sets network policy at team composition time
-- Temporary network access requests: agent → orchestrator → user approval → time-limited grant → auto-revoke
+- [x] Role-based network policy: `isolated` / `control-plane` / `proxy` / `extern`
+- [x] Default for sub-agents: `network: none`
+- [x] Orchestrator sets network policy at team composition time
+- [x] Temporary network access requests: agent → orchestrator → user approval → time-limited grant → auto-revoke (v0.5 orchestrator integration)
 
 ### Agent Runtime
-- Agent lifecycle state machine: CREATED → ACTIVE → IDLE → COMPLETED → ARCHIVED
-- IDLE agents reject messages; orchestrator must wake them explicitly
-- Token budget per session (`max_iterations_per_session`)
+- [x] Agent lifecycle state machine: CREATED → ACTIVE → IDLE → COMPLETED → ARCHIVED
+- [x] IDLE agents reject messages; orchestrator must wake them explicitly
+- [x] Token budget per session (`max_iterations_per_session`)
 
 ### Handoff Contract Runtime
-- Handoff contract validation at handoff time (required fields, role checks)
-- Handoff rejection with orchestrator notification
-- `from_roles` and `allowed_next_roles` enforcement
+- [x] Handoff contract validation at handoff time (required fields, role checks)
+- [x] Handoff rejection with orchestrator notification
+- [x] `from_roles` and `allowed_next_roles` enforcement
 
 ---
 
