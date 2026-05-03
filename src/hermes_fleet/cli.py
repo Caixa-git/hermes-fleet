@@ -177,6 +177,15 @@ def generate(
     with open(fleet_yaml_path) as f:
         fleet_config = yaml.safe_load(f) or {}
 
+    # Validate fleet.yaml against contract schema
+    from hermes_fleet.contracts import ContractValidationError, fleet_config_from_dict
+
+    try:
+        fleet_config_from_dict(fleet_config)
+    except ContractValidationError as e:
+        console.print(f"[red]✗ {e}[/red]")
+        raise typer.Exit(1)
+
     selected_team = team or fleet_config.get("team", "general-dev")
 
     # Load team

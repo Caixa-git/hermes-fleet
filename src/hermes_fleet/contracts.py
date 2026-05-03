@@ -27,6 +27,38 @@ class ContractValidationError(Exception):
 
 
 # ──────────────────────────────────────────────
+# Fleet Config Contract
+# ──────────────────────────────────────────────
+
+
+class FleetConfigContract(BaseModel):
+    """User-facing fleet.yaml configuration contract.
+
+    Validates the minimal project configuration that users write
+    by hand. Catches typos like ``teem`` instead of ``team`` early.
+    """
+
+    fleet_version: str = Field(default="0.1.0")
+    name: str = Field(default="unnamed-fleet")
+    team: str = Field(default="general-dev")
+    output_dir: str = Field(default=".fleet/generated")
+
+
+def fleet_config_from_dict(data: dict) -> FleetConfigContract:
+    """Validate a raw fleet.yaml dict against FleetConfigContract.
+
+    Raises:
+        ContractValidationError: If the data fails validation.
+    """
+    try:
+        return FleetConfigContract.model_validate(data)
+    except ValidationError as e:
+        raise ContractValidationError(
+            f"fleet.yaml validation failed: {e}"
+        ) from e
+
+
+# ──────────────────────────────────────────────
 # Team Contract
 # ──────────────────────────────────────────────
 

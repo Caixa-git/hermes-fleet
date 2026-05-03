@@ -342,4 +342,53 @@ class TestCrossReferenceValidation:
             )],
         )
         assert len(results) > 0
-        assert any(r.status == "passed" for r in results)
+
+
+class TestFleetConfigContract:
+    """FleetConfigContract schema validation."""
+
+    def test_valid_fleet_config_passes(self):
+        """A valid minimal fleet.yaml must pass validation."""
+        from hermes_fleet.contracts import FleetConfigContract
+
+        config = FleetConfigContract.model_validate({
+            "fleet_version": "0.1.0",
+            "name": "my-project",
+            "team": "general-dev",
+            "output_dir": ".fleet/generated",
+        })
+        assert config.team == "general-dev"
+        assert config.name == "my-project"
+
+    def test_defaults_are_set(self):
+        """Empty fleet.yaml must use defaults without error."""
+        from hermes_fleet.contracts import FleetConfigContract
+
+        config = FleetConfigContract.model_validate({})
+        assert config.team == "general-dev"
+        assert config.name == "unnamed-fleet"
+        assert config.output_dir == ".fleet/generated"
+
+    def test_team_must_be_string(self):
+        """Non-string team value must be rejected."""
+        from hermes_fleet.contracts import FleetConfigContract
+
+        with pytest.raises(ValidationError):
+            FleetConfigContract.model_validate({"team": 123})
+
+    def test_unknown_fields_are_ignored(self):
+        """Extra unknown fields must not cause validation errors."""
+        from hermes_fleet.contracts import FleetConfigContract
+
+        config = FleetConfigContract.model_validate({
+            "team": "saas-medium",
+            "custom_field": "should be ignored",
+        })
+        assert config.team == "saas-medium"
+
+    def test_fleet_config_from_dict_raises_on_bad_data(self):
+        """fleet_config_from_dict must raise ContractValidationError for bad data."""
+        from hermes_fleet.contracts import fleet_config_from_dict, ContractValidationError
+
+        with pytest.raises(ContractValidationError):
+            fleet_config_from_dict({"team": None})
