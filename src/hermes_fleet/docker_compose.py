@@ -2,7 +2,7 @@
 Docker Compose service configuration generation.
 """
 
-from typing import Dict, List
+from typing import List
 
 from hermes_fleet.policy import compose_policy
 

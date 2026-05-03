@@ -11,7 +11,7 @@ See `safe_defaults.py` for the file-I/O layer that loads data
 and calls these functions.
 """
 
-from typing import Dict, List
+from typing import List
 
 
 def _ok(check: str, message: str = "") -> dict:

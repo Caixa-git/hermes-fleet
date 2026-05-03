@@ -1,4 +1,0 @@
-fleet_version: 0.1.0
-name: saas-medium-example
-team: saas-medium
-output_dir: .fleet/generated
