@@ -10,11 +10,23 @@ Hermes Fleet is a self-contained CLI tool that generates secure, role-based Herm
 
 ## 2. Core Pillars
 
-Hermes Fleet is defined by three non-negotiable pillars that govern all design decisions. These pillars are themselves grounded in four design foundation sources, documented in `DESIGN_FOUNDATIONS.md`. The foundations are locked via `foundation.lock.yaml` and updated through a strict proposal → impact analysis → regression test → human approval → version bump process.
+Hermes Fleet gives every agent a role to preserve, a boundary it cannot
+cross, and a completion contract it must satisfy.
 
-### 2.1 Role Fidelity
+These three non-negotiable pillars govern all design decisions and are
+grounded in four design foundation sources, documented in
+`DESIGN_FOUNDATIONS.md`. Foundations are locked via `foundation.lock.yaml`
+and updated through a strict proposal → impact analysis → regression test
+→ human approval → version bump process.
 
-**agency-agents** is the upstream role specification dependency. The compiler's default mode is **preserve** — original role specifications are included in SOUL.md verbatim or near-verbatim, never arbitrarily summarized by AI.
+### 2.1 Role — Who the agent is
+
+*Key question: "Who is this agent, and what should it do?"*
+
+**Role Fidelity** — agency-agents is the upstream role specification dependency.
+The compiler's default mode is **preserve** — original role specifications
+are included in SOUL.md verbatim or near-verbatim, never arbitrarily
+summarized by AI.
 
 Every SOUL.md records provenance metadata:
 - `source_repository` — URL of the agency-agents repository
@@ -24,23 +36,43 @@ Every SOUL.md records provenance metadata:
 
 This ensures traceability from upstream role definition to fleet agent identity.
 
-### 2.2 Isolation
+**Role artifacts**: SOUL.md, agency-agents lock, provenance metadata,
+identity drift self-checks.
 
-Role identity declared in SOUL.md is aspirational. The actual boundary is enforced by policy.yaml and Docker.
+### 2.2 Boundary — What the agent can and cannot do
+
+*Key question: "What can this agent do, and what is off-limits?"*
+
+**Isolation** — Role identity declared in SOUL.md is aspirational. The actual
+boundary is enforced by policy.yaml and Docker.
 
 - Every agent gets separate filesystem, memory, network, secret, and command permissions.
 - Permission boundaries are expressed in **policy.yaml** — machine-readable and testable.
 - The runtime boundary is the **container**, not the prompt.
 - Isolation must be verifiable through automated checks.
 
-### 2.3 Handoff
+**Boundary artifacts**: policy.yaml, Docker Compose, safe-defaults validator,
+permission presets.
 
-Handoff between agents is a **role-specific contract**, not a generic message.
+### 2.3 Completion — When work is truly done
+
+*Key question: "Is the work really done, and can the next person pick it up?"*
+
+**Handoff + Verification** — Handoff between agents is a **role-specific contract**, not a generic message.
 
 - Each role defines its own handoff requirements (required outputs, format, validation gates).
 - The handoff must be self-contained: the receiving agent can start work from it without reading the sending agent's full history.
 - Common templates provide a baseline, but each role extends them with role-specific fields.
 - Completion gates validate that the handoff contract is fulfilled before the task moves to the next agent.
+
+Done = output + verification + record + handoff.
+
+**Completion artifacts**: Handoff contracts, completion gates, kanban templates,
+handoff validation rules.
+
+> **Future**: v0.3+ will add formal work-lifecycle tracking and verifiable
+> completion definitions under the Agent Accountability Protocol
+> (`docs/design/AGENT_ACCOUNTABILITY_PROTOCOL.md`).
 
 ---
 
@@ -572,9 +604,9 @@ New roles from upstream are only adopted after they pass all three pillar checks
 
 | Pillar | Gate |
 |--------|------|
-| Role Fidelity | Provenance metadata is complete (`source_repository`, `source_ref`, `source_path`, `source_hash`) |
-| Isolation | policy.yaml filesystem, network, secret, and command boundaries are defined |
-| Handoff | Role-specific handoff requirements exist (not just common template fallback) |
+| Role | Provenance metadata is complete (`source_repository`, `source_ref`, `source_path`, `source_hash`) |
+| Boundary | policy.yaml filesystem, network, secret, and command boundaries are defined |
+| Completion | Role-specific handoff requirements exist (not just common template fallback) |
 
 If any gate fails, the compiler blocks promotion and reports the specific deficiency.
 

@@ -9,7 +9,12 @@
 
 ## 1. Purpose
 
-Hermes Fleet's team composition must be **deterministic** and **grounded**.
+Hermes Fleet gives every agent a role to preserve, a boundary it cannot
+cross, and a completion contract it must satisfy. These three pillars —
+**Role**, **Boundary**, **Completion** — are grounded in four academic and
+standards-based foundation sources documented below.
+
+Team composition must be **deterministic** and **grounded**.
 The same input, the same locked foundation ref, the same agency-agents ref,
 and the same mapping table must always produce the same Team Proposal.
 
@@ -36,11 +41,11 @@ Jennings, Rao, Georgeff foundations of agent-oriented planning).
 
 **Core concepts applied in Hermes Fleet**:
 
-| Concept | Application |
-|---------|-------------|
-| **Solvability** | Can the team's composition solve the stated goal? The Team Contract's `required_capabilities` must be covered by the `role_inventory`. If a required capability has no assigned role, the team is incomplete. |
-| **Completeness** | Are all necessary roles present? No gaps between goal requirements and team composition. |
-| **Non-redundancy** | No unnecessary roles. Every role in the team must map to at least one required capability. Optional roles are disabled by default. |
+| Pillar | Concept | Application |
+|--------|---------|-------------|
+| Role | **Solvability** | Can the team's composition solve the stated goal? The Team Contract's `required_capabilities` must be covered by the `role_inventory`. If a required capability has no assigned role, the team is incomplete. |
+| Role | **Completeness** | Are all necessary roles present? No gaps between goal requirements and team composition. |
+| Role | **Non-redundancy** | No unnecessary roles. Every role in the team must map to at least one required capability. Optional roles are disabled by default. |
 
 These three concepts govern the Team Proposal validation gates. A proposal
 that fails solvability, completeness, or non-redundancy is rejected before
@@ -53,13 +58,13 @@ perception, self-action, mutual interaction, evolution).
 
 **Core concepts applied in Hermes Fleet**:
 
-| Concept | Application |
-|---------|-------------|
-| **Profile** | SOUL.md defines each agent's identity, mission, non-goals, and behavioral constraints. This is the agent's public persona. |
-| **Perception** | policy.yaml defines what an agent can see (filesystem paths, network endpoints, secrets). Perception is bounded by policy. |
-| **Self-action** | Each agent operates autonomously within its allowed work scope. It does not exceed its role boundaries without handoff. |
-| **Mutual interaction** | Handoff contracts define how agents communicate. Interaction is structured, validated, and auditable. |
-| **Evolution** | agency-agents updates bring new or improved role definitions. The update process preserves existing contracts and gates new roles. |
+| Pillar | Concept | Application |
+|--------|---------|-------------|
+| Role | **Profile** | SOUL.md defines each agent's identity, mission, non-goals, and behavioral constraints. This is the agent's public persona. |
+| Boundary | **Perception** | policy.yaml defines what an agent can see (filesystem paths, network endpoints, secrets). Perception is bounded by policy. |
+| Boundary | **Self-action** | Each agent operates autonomously within its allowed work scope. It does not exceed its role boundaries without handoff. |
+| Completion | **Mutual interaction** | Handoff contracts define how agents communicate. Interaction is structured, validated, and auditable. |
+| Role | **Evolution** | agency-agents updates bring new or improved role definitions. The update process preserves existing contracts and gates new roles. |
 
 ### 2.3 NIST RBAC / Sandhu RBAC
 
@@ -68,11 +73,11 @@ perception, self-action, mutual interaction, evolution).
 
 **Core concepts applied in Hermes Fleet**:
 
-| Concept | Application |
-|---------|-------------|
-| **Least privilege** | Every agent starts with the minimum permissions required for its role. No agent has access it does not need. |
-| **Role-permission mapping** | Permission presets map roles to filesystem, network, secret, and command permissions. The mapping is explicit and auditable. |
-| **Separation of duties** | No single agent should have conflicting roles. A security reviewer cannot also be an implementer. An orchestrator cannot write application code. These constraints are encoded in `forbidden_task_types` and `forbidden_paths`. |
+| Pillar | Concept | Application |
+|--------|---------|-------------|
+| Boundary | **Least privilege** | Every agent starts with the minimum permissions required for its role. No agent has access it does not need. |
+| Boundary | **Role-permission mapping** | Permission presets map roles to filesystem, network, secret, and command permissions. The mapping is explicit and auditable. |
+| Role / Boundary | **Separation of duties** | No single agent should have conflicting roles. A security reviewer cannot also be an implementer. An orchestrator cannot write application code. These constraints are encoded in `forbidden_task_types` and `forbidden_paths`. |
 
 ### 2.4 Contract Net Protocol (CNP)
 
@@ -81,11 +86,11 @@ and Control in a Distributed Problem Solver" (IEEE Trans. Computers, 1980).
 
 **Core concepts applied in Hermes Fleet**:
 
-| Concept | Application |
-|---------|-------------|
-| **Task contract** | Every task between agents is a formal contract with required inputs, required outputs, and validation rules. |
-| **Manager-contractor assignment** | The orchestrator acts as manager. Task contracts define who assigns (orchestrator), who executes (contractor), and who reviews (reviewer/security). |
-| **Structured reporting** | Handoff notes follow a fixed template with role-specific required fields. Completion gates validate that reporting is complete before the task is delivered. |
+| Pillar | Concept | Application |
+|--------|---------|-------------|
+| Completion | **Task contract** | Every task between agents is a formal contract with required inputs, required outputs, and validation rules. |
+| Completion | **Manager-contractor assignment** | The orchestrator acts as manager. Task contracts define who assigns (orchestrator), who executes (contractor), and who reviews (reviewer/security). |
+| Completion | **Structured reporting** | Handoff notes follow a fixed template with role-specific required fields. Completion gates validate that reporting is complete before the task is delivered. |
 
 ---
 

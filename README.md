@@ -66,26 +66,39 @@ v0.1 is a **local CLI tool** that generates team configuration as text files. It
 
 ## Core Pillars
 
-Hermes Fleet is built on three non-negotiable pillars:
+Hermes Fleet gives every agent a role to preserve, a boundary it cannot
+cross, and a completion contract it must satisfy.
 
-### 1. Role Fidelity
-Every agent's identity is traceable to an upstream role specification.
-The compiler preserves the original spec — no AI summarization, no drift.
-Provenance metadata (`source_repository`, `source_ref`, `source_hash`) is
-recorded in every SOUL.md.
+### 1. Role — Who the agent is
 
-### 2. Isolation
-Role identity is aspirational; the container is the boundary.
-Every agent gets separate filesystem, memory, network, secret, and command
-permissions. Policy is expressed in machine-readable `policy.yaml` and
-enforced by Docker `cap_drop`, `read_only`, `network: none`, and similar
+Every agent's identity is traceable to an upstream role specification
+(agency-agents). The compiler preserves the original spec — no AI
+summarization, no drift. Provenance metadata is recorded in every SOUL.md.
+
+*Key question: "Who is this agent, and what should it do?"*
+
+### 2. Boundary — What the agent can and cannot do
+
+Role identity is aspirational; the container is the boundary. policy.yaml
+defines filesystem, network, secret, and command permissions. Docker
+enforces them with `cap_drop`, `read_only`, `network: none`, and similar
 hardware-enforced mechanisms.
 
-### 3. Handoff
-Handoff between agents is a role-specific contract, not a generic message.
-Each role defines its own required outputs, validation rules, and
-completion gates. The receiving agent must be able to continue work from
-the handoff alone.
+*Key question: "What can this agent do, and what is off-limits?"*
+
+### 3. Completion — When work is truly done
+
+Handoff is a role-specific contract, not a generic message. Each role
+defines its own required outputs, validation rules, and completion gates.
+The receiving agent must be able to continue from the handoff alone.
+
+Done = output + verification + record + handoff.
+
+*Key question: "Is the work really done, and can the next person pick it up?"*
+
+> **Future**: v0.3+ will add formal work-lifecycle tracking and verifiable
+> completion definitions under the Agent Accountability Protocol
+> (`docs/design/AGENT_ACCOUNTABILITY_PROTOCOL.md`).
 
 ---
 
