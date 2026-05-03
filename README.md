@@ -23,6 +23,8 @@ Hermes Agent is powerful, but multi-agent work becomes difficult when:
 
 A role prompt is not enough. The runtime must make unsafe behavior impossible or at least detectable.
 
+---
+
 ## The Solution
 
 Hermes Fleet generates a complete, isolated team configuration from a single goal description:
@@ -42,17 +44,91 @@ Each agent gets:
 
 ---
 
+## What v0.1 Does
+
+v0.1 is a **local CLI tool** that generates team configuration as text files. It is a generator and validator — nothing more.
+
+| Capability | Status |
+|-----------|--------|
+| Read a goal and recommend a team preset | Done |
+| Generate SOUL.md for each agent | Done |
+| Generate policy.yaml for each agent | Done |
+| Generate Docker Compose with security defaults | Done |
+| Generate Kanban handoff templates | Done |
+| Validate generated config against 21 safe-default rules | Done |
+| Deterministic output (same input → same output) | Done |
+| Run Docker containers | Not yet (v0.3) |
+| Execute Hermes agents | Not yet (v0.3) |
+| Validate handoffs at runtime | Not yet (v0.4) |
+| AI-powered team recommendation | Not yet (v0.3 optional) |
+
+---
+
+## Core Pillars
+
+Hermes Fleet is built on three non-negotiable pillars:
+
+### 1. Role Fidelity
+Every agent's identity is traceable to an upstream role specification.
+The compiler preserves the original spec — no AI summarization, no drift.
+Provenance metadata (`source_repository`, `source_ref`, `source_hash`) is
+recorded in every SOUL.md.
+
+### 2. Isolation
+Role identity is aspirational; the container is the boundary.
+Every agent gets separate filesystem, memory, network, secret, and command
+permissions. Policy is expressed in machine-readable `policy.yaml` and
+enforced by Docker `cap_drop`, `read_only`, `network: none`, and similar
+hardware-enforced mechanisms.
+
+### 3. Handoff
+Handoff between agents is a role-specific contract, not a generic message.
+Each role defines its own required outputs, validation rules, and
+completion gates. The receiving agent must be able to continue work from
+the handoff alone.
+
+---
+
+## What This Project Is
+
+A secure team bootstrapper and configuration generator for role-based
+Hermes Agent fleets. It generates team configurations with least-privilege
+defaults so that human or AI operators can bootstrap safe multi-agent
+work without manually wiring every detail.
+
+## What This Project Is Not (v0.1)
+
+- Not a replacement for Hermes Agent
+- Not a new LLM agent runtime or model provider
+- Not a full dashboard or Kanban application
+- Not a deployment or CI/CD platform
+- Not a production secret manager
+- Not a system that executes real long-running agents
+- Not an AI that reads the latest research and auto-updates team strategy
+- Not a Docker container orchestrator (generates Compose files only)
+
+---
+
+## Roadmap
+
+| Version | Focus |
+|---------|-------|
+| **v0.1** (current) | Generator and validator. Team/role presets, safe-defaults checks. |
+| **v0.2** (next) | Contract-driven team composition. Team/Role/Handoff Contract schemas. `agency.lock.yaml` and `foundation.lock.yaml`. Deterministic onboarding protocol. |
+| **v0.3** | Container lifecycle management. Optional AI onboarding provider. Schema-validated Team Proposal. agency-agents preserve compiler. |
+| **v0.4** | Runtime policy enforcement. Isolated Hermes agent execution. Runtime handoff validation. Recovery and self-healing. |
+| **v1.0** | Production-ready: audit logging, secret management, CI/CD, web dashboard. |
+
+See [ROADMAP.md](./ROADMAP.md) for the full development plan.
+
+---
+
 ## Quickstart
 
-### Installation
-
 ```bash
-pip install hermes-fleet
-```
+# Install (from source)
+pip install -e .
 
-### Usage
-
-```bash
 # Create project configuration
 hermes-fleet init
 
@@ -70,115 +146,45 @@ Generated output goes to `.fleet/generated/` in your project directory. Nothing 
 
 ---
 
-## Example
+## Example Flow
 
 ```bash
 $ hermes-fleet plan "Build a medium-sized SaaS MVP"
 Recommended team: saas-medium
+  - orchestrator, product-manager, ux-designer, frontend-developer
+  - backend-developer, database-architect, qa-tester
+  - security-reviewer, technical-writer
 
-Agents:
-  - orchestrator
-  - product-manager
-  - ux-designer
-  - frontend-developer
-  - backend-developer
-  - database-architect
-  - qa-tester
-  - security-reviewer
-  - technical-writer
+$ hermes-fleet generate --force
+  [write] .fleet/generated/agents/orchestrator/SOUL.md
+  [write] .fleet/generated/agents/orchestrator/policy.yaml
+  ... (27 files total)
 
-Defaults:
-  - Each agent runs in its own Docker container
-  - Each agent has its own /opt/data
-  - Developers get isolated worktrees
-  - Reviewers are read-only
-  - Security reviewers have no network
-  - Deployer is disabled by default
-  - Production secrets are not injected
-  - Kanban handoff contracts are enabled
-
-Press Enter to continue with safe defaults.
+$ hermes-fleet test safe-defaults --verbose
+Safe-defaults validation results:
+  Passed: 20  Failed: 0  Skipped: 1
+All safe-defaults checks PASSED.
 ```
-
----
-
-## Core Philosophy
-
-| Principle | Meaning |
-|-----------|---------|
-| Prompt is not a permission boundary | A prompt can be ignored or forgotten. A container cannot. |
-| Every agent is a container | No shared memory, workspace, or secrets across agents. |
-| Every role has a SOUL.md and a policy.yaml | Identity + enforceable boundaries. |
-| Docker/container isolation is the real boundary | The runtime enforces what the prompt describes. |
-| Every task is a contract | Tasks have required inputs and required outputs. |
-| Every handoff is validated | Handoffs must contain required fields. |
-| Memory is private; handoff is public | Each agent's memory stays in its own container. |
-| Least privilege by default | Agents start with minimal permissions. |
-| The orchestrator coordinates, but does not execute | Orchestrators manage Kanban; they do not write code. |
-| Enter should choose the safe default | The default path is always the most restrictive one. |
-
----
-
-## Team Presets
-
-### General Development Team (general-dev)
-A small, general-purpose development team for ordinary software tasks.
-
-- orchestrator
-- fullstack-developer
-- reviewer
-- qa-tester
-- technical-writer
-
-### Medium SaaS Team (saas-medium)
-A balanced team for a medium-sized SaaS MVP.
-
-- orchestrator
-- product-manager
-- ux-designer
-- frontend-developer
-- backend-developer
-- database-architect
-- qa-tester
-- security-reviewer
-- technical-writer
-
-Optional (disabled by default): deployer, growth-marketer, customer-support-specialist
-
----
-
-## What This Project Is
-
-A secure team bootstrapper and configuration generator for role-based Hermes Agent fleets.
-
-## What This Project Is Not (v0.1)
-
-- Not a replacement for Hermes Agent
-- Not a new LLM agent runtime
-- Not a full dashboard or Kanban application
-- Not a deployment platform
-- Not a production secret manager
-- Not a system that executes real long-running agents
-
-The first MVP is a **generator and validator**.
-
----
-
-## Roadmap
-
-See [ROADMAP.md](./ROADMAP.md) for the full development plan.
 
 ---
 
 ## Architecture
 
-See [ARCHITECTURE.md](./ARCHITECTURE.md) for the system design.
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for the system design. Key layers:
+
+- **Definition Layer**: Team/role YAML presets + lock files
+- **Schema Layer**: Pydantic models for all data structures
+- **Planner**: Keyword-based team recommender (foundation-bound)
+- **Generator**: Renders SOUL.md, policy.yaml, Docker Compose
+- **Validator**: 21 safe-defaults checks
+- **CLI**: Typer-based interface
 
 ---
 
-## Specification
+## Design Foundations
 
-See [SPEC.md](./SPEC.md) for the detailed technical specification.
+See [DESIGN_FOUNDATIONS.md](./DESIGN_FOUNDATIONS.md) for the four academic
+and standards-based sources that underpin the framework's design principles.
 
 ---
 
