@@ -13,6 +13,21 @@ from hermes_fleet.teams import load_role, load_team
 
 ROLES_DIR = Path(__file__).resolve().parent.parent / "presets" / "roles"
 
+# All expected sections in a generated SOUL.md
+EXPECTED_SECTIONS = [
+    "# Identity",
+    "# Mission",
+    "# Non-Goals",
+    "# Allowed Work",
+    "# Forbidden Work",
+    "Allowed Filesystem Paths",
+    "Network",
+    "Kanban Behavior",
+    "Handoff Contract",
+    "Failure Behavior",
+    "Identity Drift Self-Check",
+]
+
 
 class TestSoulGeneration:
     """Tests for SOUL.md content generation."""
@@ -31,50 +46,15 @@ class TestSoulGeneration:
             assert soul is not None
             assert len(soul) > 100, f"SOUL.md for {role_id} is too short"
 
-    def test_soul_contains_identity_section(self):
-        """SOUL.md must include Identity section."""
+    @pytest.mark.parametrize("section", EXPECTED_SECTIONS)
+    def test_soul_contains_required_sections(self, section):
+        """Every required section must be present in the SOUL.md template."""
         soul = self._render_soul("orchestrator")
-        assert "# Identity" in soul
+        assert section in soul, f"Missing section: {section}"
 
-    def test_soul_contains_mission_section(self):
+    def test_soul_contains_identity_drift_checklist(self):
+        """Identity Drift section has Before Starting and Before Completing."""
         soul = self._render_soul("orchestrator")
-        assert "# Mission" in soul
-
-    def test_soul_contains_non_goals_section(self):
-        soul = self._render_soul("orchestrator")
-        assert "# Non-Goals" in soul
-
-    def test_soul_contains_allowed_work_section(self):
-        soul = self._render_soul("orchestrator")
-        assert "# Allowed Work" in soul
-
-    def test_soul_contains_forbidden_work_section(self):
-        soul = self._render_soul("orchestrator")
-        assert "# Forbidden Work" in soul
-
-    def test_soul_contains_filesystem_paths_section(self):
-        soul = self._render_soul("orchestrator")
-        assert "Allowed Filesystem Paths" in soul
-
-    def test_soul_contains_network_section(self):
-        soul = self._render_soul("orchestrator")
-        assert "Network" in soul
-
-    def test_soul_contains_kanban_section(self):
-        soul = self._render_soul("orchestrator")
-        assert "Kanban Behavior" in soul
-
-    def test_soul_contains_handoff_section(self):
-        soul = self._render_soul("orchestrator")
-        assert "Handoff Contract" in soul
-
-    def test_soul_contains_failure_behavior(self):
-        soul = self._render_soul("orchestrator")
-        assert "Failure Behavior" in soul
-
-    def test_soul_contains_identity_drift_self_check(self):
-        soul = self._render_soul("orchestrator")
-        assert "Identity Drift Self-Check" in soul
         assert "Before Starting" in soul
         assert "Before Completing" in soul
 
@@ -85,3 +65,8 @@ class TestSoulGeneration:
     def test_soul_mentions_agent_id(self):
         soul = self._render_soul("frontend-developer")
         assert "frontend-developer" in soul
+
+    def test_soul_contains_provenance_section(self):
+        """Provenance metadata section exists (v0.2+)."""
+        soul = self._render_soul("orchestrator")
+        assert "# Provenance" in soul

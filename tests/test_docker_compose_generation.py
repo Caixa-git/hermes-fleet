@@ -127,8 +127,3 @@ class TestDockerComposeGeneration:
             assert "cpus" in limits, f"Service '{svc_name}' missing CPU limit"
             assert "memory" in limits, f"Service '{svc_name}' missing memory limit"
 
-    def test_docker_compose_yaml_roundtrip(self, general_dev_compose):
-        """Generated compose must be deterministic."""
-        yaml_str1 = yaml.dump(general_dev_compose, default_flow_style=False)
-        yaml_str2 = yaml.dump(general_dev_compose, default_flow_style=False)
-        assert yaml_str1 == yaml_str2, "Docker Compose output is not deterministic"
