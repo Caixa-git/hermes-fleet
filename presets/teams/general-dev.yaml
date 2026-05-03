@@ -1,0 +1,12 @@
+id: general-dev
+name: General Development Team
+description: >
+  A small, general-purpose development team for ordinary software tasks.
+  Includes orchestration, fullstack development, review, QA, and documentation.
+
+agents:
+  - orchestrator
+  - fullstack-developer
+  - reviewer
+  - qa-tester
+  - technical-writer

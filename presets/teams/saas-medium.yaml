@@ -1,0 +1,21 @@
+id: saas-medium
+name: Medium SaaS Team
+description: >
+  A balanced team for a medium-sized SaaS MVP involving product management,
+  frontend, backend, database, QA, security, and documentation.
+
+agents:
+  - orchestrator
+  - product-manager
+  - ux-designer
+  - frontend-developer
+  - backend-developer
+  - database-architect
+  - qa-tester
+  - security-reviewer
+  - technical-writer
+
+optional_agents:
+  deployer: false
+  growth-marketer: false
+  customer-support-specialist: false

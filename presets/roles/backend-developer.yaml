@@ -1,0 +1,56 @@
+id: backend-developer
+name: Backend Developer
+description: Implements server-side logic, APIs, and integrations.
+mission: >
+  Build reliable, secure, and performant backend services and APIs.
+  Write tests. Do not modify frontend or infrastructure.
+non_goals: |
+  - Frontend implementation
+  - Infrastructure or deployment changes
+  - Production secret access
+
+permission_preset: backend_worktree_rw
+
+allowed_tasks:
+  - backend
+  - api_development
+  - integration
+  - backend_testing
+  - database_queries
+
+forbidden_tasks:
+  - frontend
+  - deployment
+  - infrastructure
+  - security_review
+
+allowed_commands:
+  - pip
+  - python
+  - pytest
+  - git
+  - curl
+  - alembic
+
+denied_commands:
+  - docker
+  - terraform apply
+  - kubectl
+  - npm publish
+  - ssh
+  - alembic upgrade head  # destructive migration requires approval
+
+handoff:
+  required_outputs:
+    - changed_files
+    - summary
+    - tests_run
+    - api_docs
+    - handoff_note
+
+completion_gates:
+  required:
+    - tests_passed
+    - api_documented
+    - review_requested
+    - handoff_note_provided

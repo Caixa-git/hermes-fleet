@@ -1,0 +1,4 @@
+fleet_version: 0.1.0
+name: general-dev
+output_dir: .fleet/generated
+team: general-dev

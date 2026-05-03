@@ -1,0 +1,27 @@
+# Hermes Fleet
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+dist/
+build/
+*.egg
+**/.fleet/generated/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets
+.env
+.env.*
+*.key
+*secret*
+*token*
+
+# Large / binary
+*.zip
+*.tar.gz
+*.bin
