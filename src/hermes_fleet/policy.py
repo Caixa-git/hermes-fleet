@@ -17,6 +17,8 @@ def _get_permissions_dir() -> Path:
 
 def _load_permission_presets() -> Dict[str, dict]:
     """Load all permission presets from presets/permissions/*.yaml."""
+    from hermes_fleet.contracts import ContractValidationError, permission_preset_from_dict
+
     presets_dir = _get_permissions_dir()
     presets: Dict[str, dict] = {}
     if not presets_dir.exists():
@@ -25,6 +27,13 @@ def _load_permission_presets() -> Dict[str, dict]:
         preset_id = f.stem
         with open(f) as fh:
             data = yaml.safe_load(fh) or {}
+        # Validate against contract schema
+        try:
+            permission_preset_from_dict(data)
+        except ContractValidationError as e:
+            raise RuntimeError(
+                f"Permission preset '{preset_id}' is invalid: {e}"
+            ) from e
         presets[preset_id] = data
     return presets
 

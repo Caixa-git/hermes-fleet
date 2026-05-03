@@ -59,6 +59,40 @@ def fleet_config_from_dict(data: dict) -> FleetConfigContract:
 
 
 # ──────────────────────────────────────────────
+# Permission Preset Contract
+# ──────────────────────────────────────────────
+
+
+class PermissionPresetContract(BaseModel):
+    """A permission preset that defines filesystem, network, and secret access."""
+
+    id: str
+    allowed_workspaces: str
+    filesystem: Dict[str, List[str]] = Field(default_factory=lambda: {
+        "writable_paths": [],
+        "readonly_paths": ["**"],
+        "forbidden_paths": [],
+    })
+    network_access: str
+    secret_allowlist: List[str] = Field(default_factory=list)
+
+
+def permission_preset_from_dict(data: dict) -> PermissionPresetContract:
+    """Validate a raw permission preset YAML dict against PermissionPresetContract.
+
+    Raises:
+        ContractValidationError: If the data fails validation.
+    """
+    try:
+        return PermissionPresetContract.model_validate(data)
+    except ValidationError as e:
+        preset_id = data.get("id", "unknown")
+        raise ContractValidationError(
+            f"Permission preset '{preset_id}' validation failed: {e}"
+        ) from e
+
+
+# ──────────────────────────────────────────────
 # Team Contract
 # ──────────────────────────────────────────────
 

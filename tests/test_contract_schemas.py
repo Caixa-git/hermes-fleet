@@ -392,3 +392,74 @@ class TestFleetConfigContract:
 
         with pytest.raises(ContractValidationError):
             fleet_config_from_dict({"team": None})
+
+
+class TestPermissionPresetContract:
+    """PermissionPresetContract schema validation."""
+
+    def test_valid_preset_passes(self):
+        """A valid permission preset must pass validation."""
+        from hermes_fleet.contracts import PermissionPresetContract
+
+        preset = PermissionPresetContract.model_validate({
+            "id": "test_preset",
+            "allowed_workspaces": "readonly",
+            "filesystem": {
+                "writable_paths": [],
+                "readonly_paths": ["**"],
+                "forbidden_paths": [".env"],
+            },
+            "network_access": "none",
+            "secret_allowlist": [],
+        })
+        assert preset.id == "test_preset"
+        assert preset.network_access == "none"
+
+    def test_minimal_preset_uses_defaults(self):
+        """Missing optional fields must use defaults."""
+        from hermes_fleet.contracts import PermissionPresetContract
+
+        preset = PermissionPresetContract.model_validate({
+            "id": "minimal",
+            "allowed_workspaces": "kanban_only",
+            "network_access": "control_plane_only",
+        })
+        assert preset.secret_allowlist == []
+        assert preset.filesystem["readonly_paths"] == ["**"]
+
+    def test_preset_needs_id(self):
+        """Preset without id must be rejected."""
+        from hermes_fleet.contracts import PermissionPresetContract
+
+        with pytest.raises(ValidationError):
+            PermissionPresetContract.model_validate({
+                "allowed_workspaces": "readonly",
+                "network_access": "none",
+            })
+
+    def test_permission_preset_from_dict_raises_on_bad_data(self):
+        """permission_preset_from_dict must raise ContractValidationError for bad data."""
+        from hermes_fleet.contracts import (
+            ContractValidationError,
+            permission_preset_from_dict,
+        )
+
+        with pytest.raises(ContractValidationError):
+            permission_preset_from_dict({"id": "bad", "network_access": 123})
+
+    def test_all_real_presets_pass_validation(self):
+        """Every preset in presets/permissions/ must pass contract validation."""
+        from pathlib import Path
+        import yaml
+        from hermes_fleet.contracts import permission_preset_from_dict
+
+        presets_dir = Path(__file__).resolve().parent.parent / "presets" / "permissions"
+        errors = []
+        for f in sorted(presets_dir.glob("*.yaml")):
+            with open(f) as fh:
+                data = yaml.safe_load(fh) or {}
+            try:
+                permission_preset_from_dict(data)
+            except Exception as e:
+                errors.append(f"{f.name}: {e}")
+        assert not errors, f"Preset validation errors: {errors}"
