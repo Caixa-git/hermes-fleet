@@ -9,18 +9,18 @@
 
 ### Features
 - [x] Team presets: `general-dev`, `saas-medium`
-- [ ] Role definitions for all agents in presets
-- [ ] Permission presets (repo_readonly, frontend_worktree_rw, etc.)
-- [ ] CLI: `hermes-fleet init` — create `.fleet/fleet.yaml`
-- [ ] CLI: `hermes-fleet plan "<goal>"` — recommend team via keyword heuristic
-- [ ] CLI: `hermes-fleet generate` — generate all config
-- [ ] CLI: `hermes-fleet test safe-defaults` — validate output
+- [x] Role definitions for all agents in presets
+- [x] Permission presets (repo_readonly, frontend_worktree_rw, etc.)
+- [x] CLI: `hermes-fleet init` — create `.fleet/fleet.yaml`
+- [x] CLI: `hermes-fleet plan "<goal>"` — recommend team via keyword heuristic
+- [x] CLI: `hermes-fleet generate` — generate all config
+- [x] CLI: `hermes-fleet test safe-defaults` — validate output
 - [x] SOUL.md generation (Python f-strings)
 - [x] policy.yaml generation (Python f-strings + yaml.dump)
-- [ ] Docker Compose generation (per-agent services with security defaults)
-- [ ] Kanban handoff template generation
-- [ ] Safe-defaults validator (20+ checks)
-- [ ] Automated test suite
+- [x] Docker Compose generation (per-agent services with security defaults)
+- [x] Kanban handoff template generation
+- [x] Safe-defaults validator (22 checks across 16 check functions)
+- [x] Automated test suite (175 tests)
 
 ### Quality Bar
 - All tests pass
