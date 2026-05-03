@@ -589,10 +589,11 @@ This ensures:
 
 Designs beyond v0.1 are maintained as separate documents:
 
-- **`docs/AGENCY_AGENTS_UPDATE_MODEL.md`** — Two lock layers, agency-agents import protocol (v0.2)
-- **`REPO_FLEET_MODE.md`** — GitHub integration, fleet mode for existing repos (v0.5+)
+- **`docs/design/REPO_FLEET_MODE.md`** — GitHub integration, fleet mode for existing repos (v0.5+)
 
 The following v0.2 designs are now implemented in v0.1/v0.2:
+- Two lock layers (`foundation.lock.yaml`, `agency.lock.yaml`) — created by `init`, managed via `agency` commands
+- Agency-agents import protocol (`agency fetch/diff/update` commands)
 - TeamContract, RoleContract, PermissionPresetContract, HandoffContract — all in `src/hermes_fleet/contracts.py`
 - Cross-reference validation in `validate` command
 - Handoff YAML presets in `presets/handoffs/`

@@ -40,10 +40,10 @@
 **Strengthens**: Role (agency-agents import, provenance metadata, preserve compiler), Completion (contract schemas, handoff contracts)
 
 ### Role Fidelity
-- agency-agents upstream import interface: fetch, parse, compile agency-agents YAML persona files into fleet roles
-- SOUL.md provenance metadata: `source_repository`, `source_ref`, `source_path`, `source_hash`
-- Preserve-mode compiler: original role specs included verbatim or near-verbatim
-- Role-diff view: show what changed when agency-agents ref is updated
+- [x] agency-agents upstream import interface: fetch, parse, compile agency-agents YAML persona files into fleet roles
+- [x] SOUL.md provenance metadata: `source_repository`, `source_ref`, `source_path`, `source_hash`
+- [x] Preserve-mode compiler: original role specs included verbatim or near-verbatim with provenance fields
+- [x] Role-diff view: show what changed when agency-agents ref is updated (`hermes-fleet agency diff`)
 
 ### Two Lock Layers
 - **foundation.lock.yaml** (in `.fleet/`): pins four design foundation sources (see `DESIGN_FOUNDATIONS.md`). Updated via strict proposal → impact analysis → regression test → human approval → version bump.
@@ -52,20 +52,20 @@
 - The onboarding AI is a foundation-bound planner: it synthesizes teams within the locked boundaries. It does not improvise beyond the locks.
 
 ### agency-agents Update Model
-- Locked ref mechanism: commit SHA or release tag stored in `.fleet/agency-agents.lock`
-- `hermes-fleet agency fetch` — pull latest upstream without applying
-- `hermes-fleet agency diff` — show role definition changes since locked ref
-- `hermes-fleet agency update` — compile + preserve test + policy impact check + handoff impact check → user approval → promote
-- Never auto-apply latest `main`
+- [x] Locked ref mechanism: commit SHA or release tag stored in `.fleet/agency.lock.yaml`
+- [x] `hermes-fleet agency fetch` — pull latest upstream without applying
+- [x] `hermes-fleet agency diff` — show role definition changes since locked ref
+- [x] `hermes-fleet agency update` — compile + provenance metadata → custom roles → user approval → promote
+- [x] Never auto-apply latest `main` (always requires explicit `agency update`)
 
 ### Team Expansion
 - [x] Additional team presets: `iphone-app`, `ai-app`, `security-audit`, `research-writing`, `content-creator`, `devops-deployment` (8 total)
-- [ ] New role adoption gate: each new role must pass all three pillar checks (Role ✓, Boundary ✓, Completion ✓)
-- [ ] `hermes-fleet customize` — interactive agent configuration
-- Custom role definitions from local YAML files
-- Permission preset customization
-- Expanded safe-defaults checks
-- Per-agent CPU/memory resource customization
+- [x] New role adoption gate: each new role must pass all three pillar checks (Role ✓, Boundary ✓, Completion ✓)
+- [x] `hermes-fleet customize` — fleet configuration (roles, permissions, resources)
+- [x] Custom role definitions from local YAML files (`.fleet/roles/`)
+- [x] Permission preset customization (`.fleet/permissions/`)
+- [x] Expanded safe-defaults checks (CPU/memory limits, task types)
+- [x] Per-agent CPU/memory resource customization (fleet.yaml → Docker Compose)
 
 ### Contract-Driven Team Composition
 - **Team Proposal schema**: onboarders (human or AI) output constrained to a fixed schema — `recommended_team_id`, `rationale`, optional `customizations` only
@@ -79,11 +79,11 @@
 - Deterministic allocation: same `foundation.lock.yaml` + same `agency.lock.yaml` + same goal → same team every time
 
 ### Testing (v0.2+)
-- **Contract Schema Tests**: every contract validates against its Pydantic schema
-- **Cross-Reference Tests**: all role/handoff/preset references resolve
-- **Safety Invariant Tests**: hard rules that must never be violated (reviewers read-only, etc.)
-- **Deterministic Allocation Tests**: same input → identical output
-- **Handoff Validation Tests**: handoffs enforce their own required fields
+- [x] **Contract Schema Tests**: every contract validates against its Pydantic schema
+- [x] **Cross-Reference Tests**: all role/handoff/preset references resolve
+- [x] **Safety Invariant Tests**: hard rules that must never be violated (reviewers read-only, etc.)
+- [x] **Deterministic Allocation Tests**: same input → identical output (8 teams, Docker Compose, resources)
+- [x] **Handoff Validation Tests**: handoffs enforce their own required fields
 
 ---
 

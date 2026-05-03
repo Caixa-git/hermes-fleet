@@ -63,21 +63,6 @@ def load_role(role_id: str, project_dir: Path | None = None) -> Optional[dict]:
     return data
 
 
-def load_role_raw(role_id: str, project_dir: Path | None = None) -> Optional[dict]:
-    """Load a role dict without schema validation (for customize/display)."""
-    custom_dir = _get_custom_dir("roles", project_dir)
-    if custom_dir:
-        role_path = custom_dir / f"{role_id}.yaml"
-        if role_path.exists():
-            with open(role_path) as f:
-                return yaml.safe_load(f)
-    role_path = _get_presets_dir() / "roles" / f"{role_id}.yaml"
-    if not role_path.exists():
-        return None
-    with open(role_path) as f:
-        return yaml.safe_load(f)
-
-
 def list_available_roles(project_dir: Path | None = None) -> list[str]:
     """List all available role preset IDs (built-in + custom)."""
     roles: set[str] = set()

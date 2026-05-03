@@ -2,41 +2,24 @@
 Kanban handoff contract template generation.
 """
 
-from typing import Dict
 
 
-def generate_kanban_templates(policy: dict = None) -> Dict[str, str]:
+def generate_kanban_templates() -> dict[str, str]:
     """
     Generate Kanban template dicts (task, handoff, completion gates).
 
     Returns a dict with keys: 'task-template', 'handoff-template', 'completion-gates'.
     """
     return {
-        "task-template": _render_task_template(policy),
-        "handoff-template": _render_handoff_template(policy),
-        "completion-gates": _render_completion_gates(policy),
+        "task-template": _render_task_template(),
+        "handoff-template": _render_handoff_template(),
+        "completion-gates": _render_completion_gates(),
     }
 
 
-def generate_kanban_task(policy: dict = None) -> str:
-    """Generate a task contract template."""
-    return _render_task_template(policy)
-
-
-def generate_handoff_note(policy: dict = None) -> str:
-    """Generate a handoff note template."""
-    return _render_handoff_template(policy)
-
-
-def generate_completion_gates(policy: dict = None) -> str:
-    """Generate completion gates template."""
-    return _render_completion_gates(policy)
-
-
-def _render_task_template(policy: dict = None) -> str:
+def _render_task_template() -> str:
     """Render a task contract template as markdown."""
-    required_outputs = policy.get("handoff", {}).get("required_outputs", []) if policy else []
-    required_outputs_str = "\n".join(f"- [ ] {o}" for o in required_outputs) if required_outputs else "- [ ] summary\n- [ ] files_changed"
+    required_outputs_str = "- [ ] summary\n- [ ] files_changed"
 
     return f"""# Task Contract
 
@@ -83,7 +66,7 @@ def _render_task_template(policy: dict = None) -> str:
 """
 
 
-def _render_handoff_template(policy: dict = None) -> str:
+def _render_handoff_template() -> str:
     """Render a handoff note template as markdown."""
     return """# Handoff Note
 
@@ -146,7 +129,7 @@ def _render_handoff_template(policy: dict = None) -> str:
 """
 
 
-def _render_completion_gates(policy: dict = None) -> str:
+def _render_completion_gates() -> str:
     """Render a completion gates template as YAML."""
     return """# Completion Gates
 # These conditions must be met before a task is considered complete
