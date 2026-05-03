@@ -267,12 +267,244 @@ If the Merge Gate blocks a PR for human approval:
 
 ---
 
-## 9. Relationship to Other Documents
+## 10. Community Signals
+
+An existing open-source repository already has signals that reveal where
+improvements are most valuable. Fleet Mode analyzes these signals before
+intensifying the Team Proposal. The analysis must be **deterministic** —
+fixed time windows, fixed weightings, no free-form "looks important"
+decisions.
+
+### 10.1 Signal Sources
+
+| Source | What It Reveals |
+|--------|----------------|
+| **Issues** | User-reported bugs, feature requests, questions |
+| **Discussions** | Architectural debates, design direction |
+| **PRs** | Active development patterns, review cadence |
+| **Release notes** | Project maturity, breaking changes, focus areas |
+| **Labels** | Maintainer prioritization (bug, enhancement, help wanted) |
+| **Stale issues** | Neglected areas, abandoned features |
+| **User complaints** | Recurring pain points (duplicate issues, comment threads) |
+| **Maintainer comments** | Explicit direction, blocked PRs, desired contributions |
+
+### 10.2 Deterministic Analysis Rules
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `time_window_days` | 90 | Analyze issues/PRs from the last N days |
+| `min_reaction_threshold` | 5 | Issue with 👍 reactions above this is "high community interest" |
+| `stale_issue_days` | 365 | Issues with no activity in N days are "stale" |
+| `label_priority_order` | `["bug", "security", "enhancement", "documentation", "question"]` | Priority for label-based task selection |
+| `recurring_issue_min_duplicates` | 3 | If N+ issues describe the same problem, it's "recurring" |
+
+### 10.3 Signal → Improvement Mapping
+
+| Signal | Improvement Type |
+|--------|-----------------|
+| Many open bugs with 👍 reactions | Bug-fix sprint (QA Tester + Developer) |
+| Stale dependency PRs | Dependency update (Developer, auto-merge low-risk) |
+| Security advisories / Dependabot alerts | Security audit (Security Reviewer) |
+| Missing or outdated documentation | Documentation pass (Technical Writer) |
+| Recurring user complaints about a feature | UX improvement (UX Designer + Developer) |
+| Abandoned PRs with partial work | Pickup and complete (Developer) |
+
+### 10.4 Fingerprint Integration
+
+Community signals augment the repository fingerprint:
+
+```yaml
+# Added to .fleet/fingerprint.yaml
+community_signals:
+  analyzed_at: "2026-05-03"
+  time_window_days: 90
+
+  issues:
+    total_open: 45
+    labeled_bug: 12
+    labeled_enhancement: 18
+    labeled_security: 3
+    high_reaction_count: 5
+    recurring_patterns:
+      - "CLI crashes on large inputs"
+      - "Configuration parsing errors"
+
+  prs:
+    total_open: 8
+    stale_days_avg: 120
+    abandoned_count: 3
+
+  maintainer_signals:
+    pinned_issues: ["Improve error messages", "Rewrite CLI parser"]
+    recent_release_notes: ["v0.12.0 — Major refactor"]
+```
+
+---
+
+## 11. Fleeted Exit Strategy
+
+A fleeted repo is not an infinite improvement space. It is a workspace
+with a clear goal and defined termination conditions. The Exit Strategy
+determines when the fleet's work is complete.
+
+### 11.1 Why an Exit Strategy
+
+Without defined exit criteria, a fleeted run can continue indefinitely:
+
+- There is always another issue to fix
+- There is always another test to write
+- There is always another refactoring opportunity
+- Agents have no inherent sense of "done"
+
+The Exit Strategy provides the stopping rule.
+
+### 11.2 Exit Triggers
+
+| Trigger | Meaning |
+|---------|---------|
+| **Goal completion** | All must-have and should-have items from the Team Proposal are resolved |
+| **PR budget exhausted** | The fleet has a configured maximum PR count (default: 50). When reached, the fleet stops and reports. |
+| **No low-risk high-value tasks remain** | Only high-risk, low-value, or maintainer-blocked tasks are left |
+| **Next steps require human/maintainer decision** | Architecture decisions, new feature direction, or breaking changes that the fleet cannot decide autonomously |
+| **Next steps require high-risk access** | Production secrets, deployment credentials, or infrastructure access that is intentionally withheld |
+| **Source repo changed significantly** | The upstream source repo has diverged so much that the fingerprint is stale. A re-ingest may be needed. |
+
+### 11.3 Exit Criteria Classification
+
+Every fleeted run defines three categories of exit criteria at creation time:
+
+| Category | Description | Example |
+|----------|-------------|---------|
+| **Must-have** | The fleet stops only when these are resolved | "Fix all critical security advisories" |
+| **Should-have** | High priority, but the fleet can exit without them | "Improve test coverage to 80%" |
+| **Stop-when** | Conditions that cancel the run early | "PR budget of 50 exhausted", "30 days without a merged PR" |
+| **Human-approval-needed** | Tasks that must be escalated | "Deploy to production", "Change database schema", "Modify CI/CD pipeline" |
+
+### 11.4 Exit Criteria Definition Format
+
+```yaml
+# .fleet/exit-strategy.yaml
+exit_strategy:
+  max_pr_count: 50
+  max_duration_days: 90
+  inactivity_timeout_days: 30
+
+  must_have:
+    - "resolve all critical security advisories"
+    - "fix top 3 recurring bugs by duplicates count"
+
+  should_have:
+    - "improve test coverage to 80%"
+    - "update all stale dependencies to latest minor"
+
+  stop_when:
+    - "pr_count >= max_pr_count"
+    - "no PR merged in 30 days"
+    - "source main branch advanced beyond fingerprint ref"
+
+  human_approval_needed:
+    - "any change to deployment configuration"
+    - "any change to CI/CD pipeline"
+    - "any change that introduces new dependencies on external services"
+```
+
+### 11.5 Exit Evaluation
+
+The orchestrator evaluates exit criteria after every PR merge:
+
+1. **Check must-haves.** Are all must-have items complete? If yes, flag
+   "goal completion" as possible exit trigger.
+2. **Check should-haves.** Report completion ratio (e.g., 3 of 5 done).
+3. **Check stop-whens.** Has any stop condition been triggered?
+4. **Check remaining tasks.** Classify remaining tasks by risk level.
+5. **Recommend decision.** If must-haves are done AND only high-risk or
+   human-approval items remain, recommend exit.
+6. **Escalate to human.** The orchestrator creates a summary issue with
+   the exit recommendation. The human decides: exit, continue, or adjust
+   scope.
+
+---
+
+## 12. FLEETED_EXIT_REPORT.md
+
+When a fleeted run stops (by any exit trigger), the orchestrator generates
+`FLEETED_EXIT_REPORT.md` in the fleeted repo root. This document serves as
+the permanent record of what the fleet accomplished.
+
+### 12.1 Report Template
+
+```markdown
+# Fleeted Exit Report
+
+## Source Repository
+- URL: https://github.com/org/source-repo
+- Ref at ingest: main@abc123
+- Fingerprint generated: 2026-05-03
+
+## Fleeted Repository
+- URL: https://github.com/user/fleeted-source-repo
+- Run duration: 45 days
+- Exit trigger: goal completion
+
+## Initial Goal
+Improve the security posture of the source repository.
+
+## Community Signals Analyzed
+- 12 open bugs labeled "bug"
+- 3 open security advisories
+- 5 high-reaction issues
+- 2 recurring bug patterns
+
+## Improvements Merged
+| # | PR | Description | Risk Level |
+|---|-----|-------------|------------|
+| 1 | #12 | Fix SQL injection in login endpoint | High |
+| 2 | #15 | Update dependencies (patch) | Low |
+| 3 | #18 | Add security.md and contribution guide | Low |
+| 4 | #22 | Fix recurring crash on large input | Medium |
+
+## PR List
+- #12 Fix SQL injection (merged)
+- #15 Dependency update (merged)
+- #18 Security documentation (merged)
+- #22 Crash fix (merged)
+- #24 Auth rate limiting (open — requires human decision)
+
+## Tests Run
+- pytest: 15,234 passed, 3 failed (pre-existing)
+- New tests added: 47
+
+## Remaining Risks
+- Rate limiting not implemented (requires human decision on throttling strategy)
+- Database migration not attempted (high-risk, requires production access)
+
+## Upstream Contribution Candidates
+The following changes are suitable for upstream contribution:
+- PR #12: SQL injection fix (port to source repo main)
+- PR #18: Security documentation (port to source repo)
+
+## Why the Fleeted Run Stopped
+All must-have items from the exit strategy were resolved. Only high-risk
+and human-approval items remain. The fleet cannot proceed without human
+decision on rate limiting strategy and production database access.
+```
+
+### 12.2 Report Distribution
+
+The exit report is:
+
+1. Committed to the fleeted repo as `FLEETED_EXIT_REPORT.md`
+2. Posted as a GitHub Issue summary in the fleeted repo
+3. Sent to the configured notification channel (if any)
+
+---
+
+## 13. Relationship to Other Documents
 
 | Document | Relationship |
 |----------|-------------|
 | `ARCHITECTURE.md` | Fleet Mode adds a new intake layer between "User Goal" and "Planner" |
-| `SPEC.md` | Repository Fingerprint is a new data type; Merge Gate is a new component |
-| `ROADMAP.md` | Fleet Mode is the organizing concept for v0.5-v0.6 |
+| `SPEC.md` | Repository Fingerprint, Community Signals, Exit Strategy, and Merge Gate are new data types and components |
+| `ROADMAP.md` | Fleet Mode is the organizing concept for v0.5-v0.6. Exit Strategy is part of the fleet lifecycle. |
 | `WORKFLOW.md` | PR-based workflow, merge gate, and audit trail extend the work loop |
 | `DESIGN_FOUNDATIONS.md` | Contract Net Protocol (CNP) governs the manager-contractor issue flow |

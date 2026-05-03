@@ -765,3 +765,78 @@ in any generated file). It is used only by the Fleet Orchestrator agent.
 - High-risk changes always require human approval
 - `.env` and secret-like files are never auto-merged
 - All agent actions are audited via GitHub Issues and PRs
+
+---
+
+## 17. Community Signals Schema (v0.5+)
+
+See `REPO_FLEET_MODE.md` section 10 for the full design.
+
+### 17.1 Deterministic Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `time_window_days` | integer | 90 | Analyze issues/PRs from the last N days |
+| `min_reaction_threshold` | integer | 5 | Minimum 👍 reactions for "high community interest" |
+| `stale_issue_days` | integer | 365 | No activity in N days = stale |
+| `recurring_issue_min_duplicates` | integer | 3 | Threshold for "recurring problem" |
+| `label_priority_order` | list of strings | `["bug", "security", "enhancement", "documentation", "question"]` | Priority for label-based task selection |
+
+### 17.2 Signal Data Types
+
+```yaml
+community_signals:
+  analyzed_at: timestamp
+  time_window_days: integer
+  issues:
+    total_open: integer
+    labeled_bug: integer
+    labeled_security: integer
+    high_reaction_count: integer
+    recurring_patterns:
+      - description: string
+        duplicate_count: integer
+  prs:
+    total_open: integer
+    abandoned_count: integer
+  maintainer_signals:
+    pinned_issues: [string]
+    recent_release_notes: [string]
+```
+
+---
+
+## 18. Exit Strategy Schema (v0.5+)
+
+See `REPO_FLEET_MODE.md` section 11 for the full design.
+
+### 18.1 Exit Criteria
+
+```yaml
+# .fleet/exit-strategy.yaml
+exit_strategy:
+  max_pr_count: integer        # default: 50
+  max_duration_days: integer   # default: 90
+  inactivity_timeout_days: integer  # default: 30
+
+  must_have: [string]
+  should_have: [string]
+  stop_when: [string]
+  human_approval_needed: [string]
+```
+
+### 18.2 Exit Trigger Types
+
+| Trigger | Type | Description |
+|---------|------|-------------|
+| Goal completion | automatic | All must-have items resolved |
+| PR budget exhausted | automatic | `pr_count >= max_pr_count` |
+| No low-risk tasks remain | heuristic | Only high-risk items left |
+| Human decision required | escalation | Architecture, secrets, deployment |
+| Source repo diverged | automatic | Fingerprint ref is stale |
+
+### 18.3 Exit Report
+
+See `REPO_FLEET_MODE.md` section 12 for the `FLEETED_EXIT_REPORT.md`
+template. The report is generated automatically when any exit trigger
+fires.
