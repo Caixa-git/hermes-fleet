@@ -19,7 +19,11 @@ Cross-reference validation ensures:
 
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, ValidationError, model_validator
+
+
+class ContractValidationError(Exception):
+    """Raised when a YAML definition fails schema validation."""
 
 
 # ──────────────────────────────────────────────
@@ -125,6 +129,39 @@ class HandoffContract(BaseModel):
                     f"Handoff '{self.id}': role '{fr}' is both sender and receiver"
                 )
         return self
+
+
+# ──────────────────────────────────────────────
+# YAML → Contract Helpers
+# ──────────────────────────────────────────────
+
+
+def team_from_dict(data: dict) -> TeamContract:
+    """Validate a raw YAML dict against TeamContract schema.
+
+    Raises:
+        ContractValidationError: If the data fails validation.
+    """
+    try:
+        return TeamContract.model_validate(data)
+    except ValidationError as e:
+        raise ContractValidationError(
+            f"Team contract validation failed for '{data.get('id', 'unknown')}': {e}"
+        ) from e
+
+
+def role_from_dict(data: dict) -> RoleContract:
+    """Validate a raw YAML dict against RoleContract schema.
+
+    Raises:
+        ContractValidationError: If the data fails validation.
+    """
+    try:
+        return RoleContract.model_validate(data)
+    except ValidationError as e:
+        raise ContractValidationError(
+            f"Role contract validation failed for '{data.get('id', 'unknown')}': {e}"
+        ) from e
 
 
 # ──────────────────────────────────────────────

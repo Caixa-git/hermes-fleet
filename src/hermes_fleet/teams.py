@@ -7,6 +7,8 @@ from typing import Optional
 
 import yaml
 
+from hermes_fleet.contracts import ContractValidationError, role_from_dict, team_from_dict
+
 
 def _get_presets_dir() -> Path:
     """Return the presets directory."""
@@ -19,7 +21,10 @@ def load_team(team_id: str) -> Optional[dict]:
     if not team_path.exists():
         return None
     with open(team_path) as f:
-        return yaml.safe_load(f)
+        data = yaml.safe_load(f)
+    # Validate against TeamContract schema
+    team_from_dict(data)
+    return data
 
 
 def load_role(role_id: str) -> Optional[dict]:
@@ -28,7 +33,10 @@ def load_role(role_id: str) -> Optional[dict]:
     if not role_path.exists():
         return None
     with open(role_path) as f:
-        return yaml.safe_load(f)
+        data = yaml.safe_load(f)
+    # Validate against RoleContract schema
+    role_from_dict(data)
+    return data
 
 
 def list_available_teams() -> list[str]:
