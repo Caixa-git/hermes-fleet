@@ -8,6 +8,10 @@ from typing import Dict, List
 
 import yaml
 
+from hermes_fleet.checks import (
+    run_docker_compose_checks,
+)
+
 
 def run_safe_defaults_check(generated_dir: Path, verbose: bool = False) -> List[Dict]:
     """
@@ -61,89 +65,12 @@ def run_safe_defaults_check(generated_dir: Path, verbose: bool = False) -> List[
 
     # --- Docker Security Tests ---
     @_check
-    def no_privileged_containers(r):
+    def docker_security_checks(r):
         compose = _load_compose(generated_dir, r)
         if compose is None:
             return
-        for svc_name, svc in compose.get("services", {}).items():
-            if svc.get("privileged", False):
-                r("failed", f"Service '{svc_name}' has privileged: true")
-                return
-        r("passed", "No privileged containers")
-
-    @_check
-    def no_docker_sock_mounts(r):
-        compose = _load_compose(generated_dir, r)
-        if compose is None:
-            return
-        for svc_name, svc in compose.get("services", {}).items():
-            volumes = svc.get("volumes", [])
-            for vol in volumes:
-                if isinstance(vol, dict):
-                    src = vol.get("source", "")
-                else:
-                    src = str(vol).split(":")[0] if ":" in str(vol) else ""
-                if "docker.sock" in src or "/var/run/docker" in src:
-                    r("failed", f"Service '{svc_name}' mounts docker socket: {src}")
-                    return
-        r("passed", "No docker.sock mounts")
-
-    @_check
-    def no_host_network_mode(r):
-        compose = _load_compose(generated_dir, r)
-        if compose is None:
-            return
-        for svc_name, svc in compose.get("services", {}).items():
-            if svc.get("network_mode") == "host":
-                r("failed", f"Service '{svc_name}' uses host network mode")
-                return
-        r("passed", "No host network mode")
-
-    @_check
-    def all_services_have_cap_drop_all(r):
-        compose = _load_compose(generated_dir, r)
-        if compose is None:
-            return
-        for svc_name, svc in compose.get("services", {}).items():
-            caps = svc.get("cap_drop", [])
-            if "ALL" not in caps:
-                r("failed", f"Service '{svc_name}' missing cap_drop: [ALL]")
-                return
-        r("passed", "All services have cap_drop: [ALL]")
-
-    @_check
-    def all_services_have_no_new_privileges(r):
-        compose = _load_compose(generated_dir, r)
-        if compose is None:
-            return
-        for svc_name, svc in compose.get("services", {}).items():
-            sec_opt = svc.get("security_opt", [])
-            if not any("no-new-privileges" in opt for opt in sec_opt):
-                r("failed", f"Service '{svc_name}' missing no-new-privileges")
-                return
-        r("passed", "All services have no-new-privileges")
-
-    @_check
-    def all_services_have_pids_limit(r):
-        compose = _load_compose(generated_dir, r)
-        if compose is None:
-            return
-        for svc_name, svc in compose.get("services", {}).items():
-            if svc.get("pids_limit") is None:
-                r("failed", f"Service '{svc_name}' missing pids_limit")
-                return
-        r("passed", "All services have pids_limit set")
-
-    @_check
-    def all_services_have_read_only_root(r):
-        compose = _load_compose(generated_dir, r)
-        if compose is None:
-            return
-        for svc_name, svc in compose.get("services", {}).items():
-            if svc.get("read_only") is not True:
-                r("failed", f"Service '{svc_name}' missing read_only: true")
-                return
-        r("passed", "All services have read_only: true")
+        for result in run_docker_compose_checks(compose):
+            r(result["status"], result.get("message", ""), check_name=result["check"])
 
     @_check
     def all_agents_have_separate_opt_data(r):
@@ -298,13 +225,7 @@ def run_safe_defaults_check(generated_dir: Path, verbose: bool = False) -> List[
         all_agents_have_soul_md,
         policy_yaml_generated_for_all_agents,
         docker_compose_file_present,
-        no_privileged_containers,
-        no_docker_sock_mounts,
-        no_host_network_mode,
-        all_services_have_cap_drop_all,
-        all_services_have_no_new_privileges,
-        all_services_have_pids_limit,
-        all_services_have_read_only_root,
+        docker_security_checks,
         all_agents_have_separate_opt_data,
         reviewer_is_readonly,
         security_reviewer_no_network,
@@ -386,9 +307,9 @@ def _check(func):
     def wrapper(*args, **kwargs):
         results = []
 
-        def record(status, message=""):
+        def record(status, message="", check_name=None):
             results.append({
-                "check": func.__name__.replace("_", " ").title(),
+                "check": check_name or func.__name__.replace("_", " ").title(),
                 "status": status,
                 "message": message,
             })
