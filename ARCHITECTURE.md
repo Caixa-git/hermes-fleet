@@ -184,53 +184,82 @@ User goal ───────────┘                              │
 
 ### Core Pillars
 
-Hermes Fleet is built on three non-negotiable pillars, themselves grounded
-in four design foundation sources (see `DESIGN_FOUNDATIONS.md`):
+Hermes Fleet gives every agent a role to preserve, a boundary it cannot
+cross, and a completion contract it must satisfy.
 
-| Pillar | Foundation Source |
-|--------|-------------------|
-| Role Fidelity | Agent-Oriented Planning (solvability, completeness, non-redundancy); LLM MAS Survey (profile, evolution) |
-| Isolation | NIST RBAC / Sandhu RBAC (least privilege, role-permission mapping, separation of duties) |
-| Handoff | Contract Net Protocol (task contract, manager-contractor assignment, structured reporting) |
+These three pillars are grounded in four design foundation sources (see
+`DESIGN_FOUNDATIONS.md`) and locked via `foundation.lock.yaml`:
 
-#### 1. Role Fidelity
+| Pillar | Foundation Source | Key Artifacts |
+|--------|-------------------|---------------|
+| Role | Agent-Oriented Planning (solvability, completeness, non-redundancy); LLM MAS Survey (profile, evolution) | SOUL.md, agency-agents lock, provenance metadata |
+| Boundary | NIST RBAC / Sandhu RBAC (least privilege, role-permission mapping, separation of duties) | policy.yaml, Docker Compose, safe-defaults validator |
+| Completion | Contract Net Protocol (task contract, manager-contractor assignment, structured reporting) | Handoff contracts, completion gates, kanban templates |
 
-The framework's most important responsibility is preserving the integrity of each role's source specification.
+#### 1. Role — Who the agent is
 
-- **agency-agents** is the upstream role specification dependency. It is not optional decoration — it is the authoritative source for occupational role definitions.
-- The compiler's default mode is **preserve**. Role specifications from agency-agents must not be arbitrarily summarized or paraphrased by AI.
-- The original role specification is included in SOUL.md **verbatim or near-verbatim**.
-- Every SOUL.md records **provenance metadata**:
-  - `source_repository` — URL of the agency-agents repository
-  - `source_ref` — commit SHA or release tag
-  - `source_path` — path to the role spec within the repository
-  - `source_hash` — content hash of the original spec
+The framework's most important responsibility is preserving the integrity
+of each role's source specification.
 
-This ensures that the connection between a fleet agent's identity and its upstream role definition is traceable, auditable, and never silently degraded.
+- **agency-agents** is the upstream role specification dependency. It is
+  the authoritative source for occupational role definitions.
+- The compiler's default mode is **preserve**. Role specifications from
+  agency-agents must not be arbitrarily summarized or paraphrased by AI.
+- Every SOUL.md records **provenance metadata** (`source_repository`,
+  `source_ref`, `source_path`, `source_hash`) so the connection between
+  a fleet agent's identity and its upstream definition is traceable and
+  never silently degraded.
+- **Role drift prevention** is embedded in the generated SOUL.md via
+  pre-work and post-work self-check questions (identity drift guards).
 
-#### 2. Isolation
+**How it connects**: SOUL.md is the identity artifact. agency-agents is
+the upstream source. The preserve compiler and provenance metadata are
+the mechanisms. The advisor (planner) is foundation-bound — it cannot
+invent roles beyond the locked inventory.
 
-Role identity declared in SOUL.md is aspirational. The actual boundary is enforced by policy.yaml and Docker.
+#### 2. Boundary — What the agent can and cannot do
 
-- Every agent gets separate filesystem, memory, network, secret, and command permissions.
-- Permission boundaries are expressed in **policy.yaml** — machine-readable, testable, and eventually enforceable at runtime.
-- The runtime boundary is the **container**, not the prompt. A prompt can be ignored or forgotten. A container with `cap_drop: ALL`, `read_only: true`, and `network: none` cannot.
-- Isolation must be **verifiable**. The safe-defaults validator and future policy enforcer must be able to prove that agent A cannot access agent B's data.
+Role identity declared in SOUL.md is aspirational. The actual boundary is
+enforced by policy.yaml and Docker.
 
-For v0.1, isolation is expressed as generated configuration. In future versions, it will be enforced at runtime.
+- Policy is expressed in **policy.yaml** — machine-readable, testable,
+  and eventually enforceable at runtime.
+- The runtime boundary is the **container**, not the prompt. A container
+  with `cap_drop: ALL`, `read_only: true`, and `network: none` cannot
+  be circumvented by prompt manipulation.
+- Every agent gets separate filesystem, network, secret, and command
+  permissions. The `safe-defaults` validator proves these boundaries are
+  correctly configured.
+- For v0.1, boundaries are expressed as generated configuration. v0.4+
+  enforces them at runtime with a policy enforcer sidecar.
 
-#### 3. Handoff
+**How it connects**: policy.yaml defines the boundary. Docker Compose
+(`cap_drop`, `read_only`, `network`) enforces it. The safe-defaults
+validator proves it. RBAC (NIST) is the theoretical foundation.
 
-Handoff between agents is not a generic message — it is a **role-specific contract**.
+#### 3. Completion — When work is truly done
 
-- Each role defines its own handoff requirements. A common template alone is insufficient.
-- Examples of role-specific handoff differences:
-  - **Product Manager** hands off: requirements doc, acceptance criteria, priority score, stakeholder notes.
-  - **Backend Developer** hands off: changed files, API contracts, migration status, test results, known edge cases.
-  - **Security Reviewer** hands off: risk summary, severity labels, recommended fixes, explicit approve/block decision.
-  - **QA Tester** hands off: test results, bug reports, reproduction steps, test coverage gaps.
-- Handoff is a **contract**, not a note. The receiving agent must be able to start work from the handoff alone, without reading the sending agent's full history.
-- Completion gates validate that the handoff contract is fulfilled before the task moves to the next agent.
+Handoff is a **role-specific contract**, not a generic message.
+
+- Each role defines its own handoff requirements. A common template alone
+  is insufficient.
+- Handoff is self-contained: the receiving agent must be able to start
+  work from the handoff alone, without reading the sending agent's full
+  history.
+- Completion gates validate that the handoff contract is fulfilled before
+  the task moves to the next agent.
+
+Done = output + verification + record + handoff.
+
+**How it connects**: Handoff contract templates define the required
+fields. Completion gates.yaml encodes validation criteria. The kanban
+layer generates these artifacts. Contract Net Protocol is the theoretical
+foundation.
+
+> **Future**: v0.3+ will introduce formal work-lifecycle tracking,
+> per-role completion gates, and missing-report detection under the
+> Agent Accountability Protocol
+> (`docs/design/AGENT_ACCOUNTABILITY_PROTOCOL.md`).
 
 ---
 
@@ -291,9 +320,9 @@ Key rules:
 - **Never auto-apply** `main`. Always lock to a specific commit SHA or release tag.
 - The locked ref is stored in the project's `fleet.yaml` or a dedicated `.fleet/agency-agents.lock` file.
 - New roles from upstream are only adopted after they pass all three pillar checks:
-  - Role Fidelity: Provenance metadata is complete.
-  - Isolation: policy.yaml and Docker boundaries are defined.
-  - Handoff: Role-specific handoff requirements exist.
+  - Role: Provenance metadata is complete.
+  - Boundary: policy.yaml and Docker boundaries are defined.
+  - Completion: Role-specific handoff requirements exist.
 - If an upstream update breaks a contract, the compiler blocks promotion and reports the issue.
 
 ---

@@ -5,6 +5,7 @@
 ## v0.1 — Generator and Validator (Current)
 
 **Goal**: Self-contained CLI that generates secure, role-based Hermes Agent team configurations.
+**Strengthens**: Role (role presets, SOUL.md), Boundary (policy.yaml, Docker Compose, safe-defaults)
 
 ### Features
 - [x] Team presets: `general-dev`, `saas-medium`
@@ -36,6 +37,7 @@
 ## v0.2 — Team Expansion, Role Fidelity, and agency-agents Import
 
 **Goal**: More team presets, user customization, agency-agents import, and role-fidelity infrastructure.
+**Strengthens**: Role (agency-agents import, provenance metadata, preserve compiler), Completion (contract schemas, handoff contracts)
 
 ### Role Fidelity
 - agency-agents upstream import interface: fetch, parse, compile agency-agents YAML persona files into fleet roles
@@ -58,7 +60,7 @@
 
 ### Team Expansion
 - Additional team presets: `iphone-app`, `ai-app`, `security-audit`, `research-writing`, `content-creator`, `devops-deployment`
-- New role adoption gate: each new role must pass all three pillar checks (Role Fidelity ✓, Isolation ✓, Handoff ✓)
+- New role adoption gate: each new role must pass all three pillar checks (Role ✓, Boundary ✓, Completion ✓)
 - `hermes-fleet customize` — interactive agent configuration
 - Custom role definitions from local YAML files
 - Permission preset customization
@@ -90,6 +92,7 @@
 **Goal**: Actually run the generated containers, manage agent lifecycles,
 introduce an optional AI onboarding provider, and implement the
 agency-agents preserve compiler.
+**Strengthens**: Boundary (container lifecycle, volume persistence), Completion (handoff contract runtime, AAP tracking)
 
 ### Container Lifecycle
 - `hermes-fleet up` — start the fleet (docker compose up)
@@ -131,6 +134,7 @@ agency-agents preserve compiler.
 ## v0.4 — Policy Enforcement, Runtime Handoff, and Recovery
 
 **Goal**: Runtime policy enforcement at the container boundary. Role-specific handoff contracts validated at runtime. Self-healing from violations.
+**Strengthens**: Boundary (policy enforcer, runtime enforcement), Completion (runtime handoff validation, recovery)
 
 ### Policy Enforcement
 - Policy enforcer sidecar per container
@@ -160,6 +164,7 @@ agency-agents preserve compiler.
 **Goal**: Built-in Kanban board for task handoff between agents. First
 version of Repo Fleet Mode — ingest an existing repo, create a fleeted
 workspace, and run a PR-based team workflow.
+**Strengthens**: Completion (kanban runtime, task handoff validation)
 
 ### Kanban Runtime
 - `hermes-fleet task create` — create a task
