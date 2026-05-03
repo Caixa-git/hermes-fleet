@@ -19,12 +19,6 @@ from rich.table import Table
 from hermes_fleet.planner import recommend_team
 from hermes_fleet.generator import generate_fleet
 from hermes_fleet.safe_defaults import run_safe_defaults_check
-from hermes_fleet.contracts import validate_all_cross_references
-from hermes_fleet.loader import (
-    load_all_team_contracts,
-    load_all_role_contracts,
-    load_known_presets,
-)
 
 app = typer.Typer(
     name="hermes-fleet",
@@ -203,64 +197,15 @@ def generate(
         force=force,
     )
 
-    console.print(f"\\n[green]✓ Generated fleet configuration in: {output_dir}[/green]")
+    console.print(f"\n[green]✓ Generated fleet configuration in: {output_dir}[/green]")
     console.print(
-        "\\nFiles created:\\n"
-        f"  {output_dir}/docker-compose.generated.yaml\\n"
-        f"  {output_dir}/agents/<agent-id>/SOUL.md\\n"
-        f"  {output_dir}/agents/<agent-id>/policy.yaml\\n"
-        f"  {output_dir}/kanban/\\n"
-        "\\nNext: hermes-fleet test safe-defaults"
+        "\nFiles created:\n"
+        f"  {output_dir}/docker-compose.generated.yaml\n"
+        f"  {output_dir}/agents/<agent-id>/SOUL.md\n"
+        f"  {output_dir}/agents/<agent-id>/policy.yaml\n"
+        f"  {output_dir}/kanban/\n"
+        "\nNext: hermes-fleet test safe-defaults"
     )
-
-
-@app.command()
-def validate(
-    verbose: bool = typer.Option(
-        False, "--verbose", "-v", help="Show all checks including passing"
-    ),
-):
-    """Validate all presets against contract schemas and cross-references."""
-    team_contracts = load_all_team_contracts()
-    role_contracts = load_all_role_contracts()
-    known_presets = load_known_presets()
-
-    if not team_contracts:
-        console.print("[red]✗ No team presets found to validate.[/red]")
-        raise typer.Exit(1)
-
-    console.print(f"[dim]Loaded {len(team_contracts)} team contracts, "
-                  f"{len(role_contracts)} role contracts, "
-                  f"{len(known_presets)} permission presets[/dim]")
-
-    results = validate_all_cross_references(
-        team_contracts=team_contracts,
-        role_contracts=role_contracts,
-        handoff_contracts=[],
-        known_presets=known_presets,
-    )
-
-    passed = sum(1 for r in results if r["status"] == "passed")
-    failed = sum(1 for r in results if r["status"] == "failed")
-    skipped = sum(1 for r in results if r["status"] == "skipped")
-
-    console.print(f"\nContract validation results:")
-    console.print(f"  Passed: {passed}")
-    console.print(f"  Failed: {failed}")
-    console.print(f"  Skipped: {skipped}")
-
-    for r in results:
-        if r["status"] == "failed":
-            console.print(f"  [red]✗ {r['check']}: {r['message']}[/red]")
-        elif verbose and r["status"] == "passed":
-            console.print(f"  [green]✓ {r['check']}[/green]")
-        elif verbose and r["status"] == "skipped":
-            console.print(f"  [dim]… {r['check']}: {r['message']}[/dim]")
-
-    if failed > 0:
-        console.print(f"\n[red]Contract validation FAILED.[/red]")
-        raise typer.Exit(1)
-    console.print(f"\n[green]All contract checks PASSED.[/green]")
 
 
 test_app = typer.Typer(
