@@ -19,7 +19,7 @@ class TestGenerateCrossReference:
         fleet_dir = tmp_path / ".fleet"
         fleet_dir.mkdir(parents=True)
         with open(fleet_dir / "fleet.yaml", "w") as f:
-            yaml.dump({"team": team_id}, f)
+            yaml.dump({"fleet_version": "0.1.0", "name": "test-fleet", "team": team_id}, f)
 
     def test_generate_rejects_unknown_role(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         """A team referencing a nonexistent role must fail with clear error."""
@@ -169,10 +169,10 @@ class TestValidateCommand:
         result = self.runner.invoke(app, ["validate", "-v"], catch_exceptions=False)
 
         assert result.exit_code == 0
-        # Verbose shows ✓ prefix for passing checks
-        assert "team_role_references" in result.stdout
-        assert "role_preset_references" in result.stdout
-        assert "no_duplicate_ids" in result.stdout
+        # Verbose shows ✓ prefix for individual checks
+        assert "team:general-dev.agent:orchestrator" in result.stdout
+        assert "role:orchestrator.preset:orchestrator_safe" in result.stdout
+        assert "handoff:orchestrator-developer.from_role:orchestrator" in result.stdout
 
     def test_validate_reports_loaded_counts(self, monkeypatch: pytest.MonkeyPatch):
         """Validate must show how many teams and roles were loaded."""
@@ -188,6 +188,7 @@ class TestValidateCommand:
         assert result.exit_code == 0
         assert "2 teams" in result.stdout
         assert "14 roles" in result.stdout
+        assert "4 handoffs" in result.stdout
 
     def test_validate_fails_on_bad_preset_ref(self, monkeypatch: pytest.MonkeyPatch):
         """Validate must detect a role with an unknown permission_preset."""

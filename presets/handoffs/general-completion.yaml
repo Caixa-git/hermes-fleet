@@ -1,0 +1,43 @@
+# Handoff Contract: General Completion Report
+id: general-completion
+name: Completion Report
+description: Generic handoff for any role reporting task completion to orchestrator.
+from_roles:
+  - orchestrator
+  - fullstack-developer
+  - frontend-developer
+  - backend-developer
+  - database-architect
+  - reviewer
+  - security-reviewer
+  - qa-tester
+  - technical-writer
+  - ux-designer
+  - product-manager
+  - deployer
+  - growth-marketer
+  - customer-support-specialist
+allowed_next_roles:
+  - orchestrator
+required_fields:
+  - completed_work_description
+  - status
+validation_rules:
+  - field: completed_work_description
+    required: true
+    min_length: 10
+  - field: status
+    required: true
+    enum:
+      - completed
+      - partial
+      - blocked
+      - failed
+  - field: blockers
+    required: false
+    min_items: 0
+  - field: next_recommended_action
+    required: false
+completion_gate:
+  required:
+    - work_completed_or_reported

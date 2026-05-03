@@ -61,15 +61,17 @@ class TestTeamPresets:
         assert len(teams) >= 2
 
     def test_team_validation_rejects_bad_yaml(self):
-        """A team YAML without required fields must raise ContractValidationError."""
-        from hermes_fleet.contracts import ContractValidationError, team_from_dict
+        """A team YAML without required fields must raise ValidationError."""
+        from pydantic import ValidationError
+        from hermes_fleet.contracts import team_from_dict
 
-        with pytest.raises(ContractValidationError):
+        with pytest.raises(ValidationError):
             team_from_dict({"id": "bad-team", "agents": []})
 
     def test_role_validation_rejects_bad_yaml(self):
-        """A role YAML without required fields must raise ContractValidationError."""
-        from hermes_fleet.contracts import ContractValidationError, role_from_dict
+        """A role YAML without required fields must raise ValidationError."""
+        from pydantic import ValidationError
+        from hermes_fleet.contracts import role_from_dict
 
-        with pytest.raises(ContractValidationError):
+        with pytest.raises(ValidationError):
             role_from_dict({"id": "bad-role", "allowed_tasks": []})

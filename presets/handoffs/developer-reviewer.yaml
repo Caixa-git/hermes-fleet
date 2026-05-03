@@ -1,0 +1,38 @@
+# Handoff Contract: Developer → Reviewer Code Submission
+id: developer-reviewer
+name: Code Submission
+description: Developer submits completed code for peer review.
+from_roles:
+  - fullstack-developer
+  - frontend-developer
+  - backend-developer
+  - database-architect
+  - deployer
+allowed_next_roles:
+  - reviewer
+  - security-reviewer
+  - orchestrator
+required_fields:
+  - summary_of_changes
+  - files_changed
+  - test_results
+  - self_review_checklist
+validation_rules:
+  - field: summary_of_changes
+    required: true
+    min_length: 20
+  - field: files_changed
+    required: true
+    min_items: 1
+  - field: test_results
+    required: true
+    min_length: 10
+  - field: self_review_checklist
+    required: true
+    min_items: 3
+  - field: related_issues
+    required: false
+completion_gate:
+  required:
+    - code_submitted
+    - tests_passed_locally

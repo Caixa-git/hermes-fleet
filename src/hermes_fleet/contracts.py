@@ -1,373 +1,423 @@
-"""
-Contract schemas and cross-reference validation for Hermes Fleet v0.2+.
+"""Pydantic contracts for Hermes Fleet configuration validation."""
 
-Defines formal, validated data models for Team, Role, and Handoff
-contracts. These are the machine-readable equivalent of the three design
-pillars (Role, Boundary, Completion) — expressed as Pydantic models with
-cross-reference validation.
+from __future__ import annotations
 
-v0.2 focus:
-- TeamContract: which agents form a team
-- RoleContract: what an agent is and what it can do
-- HandoffContract: what a handoff must contain (Completion pillar)
+import os
+from typing import Any
 
-Cross-reference validation ensures:
-- Every team agent has a corresponding role definition
-- Every role references a known permission preset
-- Every handoff contract pairs known roles
-"""
-
-from typing import Any, Dict, List, Optional
-
-from pydantic import BaseModel, Field, ValidationError, model_validator
+from pydantic import BaseModel, field_validator
 
 
 class ContractValidationError(Exception):
-    """Raised when a YAML definition fails schema validation."""
+    """Raised when a contract fails validation."""
 
 
-# ──────────────────────────────────────────────
-# Fleet Config Contract
-# ──────────────────────────────────────────────
-
-
-class FleetConfigContract(BaseModel):
-    """User-facing fleet.yaml configuration contract.
-
-    Validates the minimal project configuration that users write
-    by hand. Catches typos like ``teem`` instead of ``team`` early.
-    """
-
-    fleet_version: str = Field(default="0.1.0")
-    name: str = Field(default="unnamed-fleet")
-    team: str = Field(default="general-dev")
-    output_dir: str = Field(default=".fleet/generated")
-
-
-def fleet_config_from_dict(data: dict) -> FleetConfigContract:
-    """Validate a raw fleet.yaml dict against FleetConfigContract.
-
-    Raises:
-        ContractValidationError: If the data fails validation.
-    """
-    try:
-        return FleetConfigContract.model_validate(data)
-    except ValidationError as e:
-        raise ContractValidationError(
-            f"fleet.yaml validation failed: {e}"
-        ) from e
-
-
-# ──────────────────────────────────────────────
-# Permission Preset Contract
-# ──────────────────────────────────────────────
+# ── Permission Preset ──────────────────────────────────────────────────────────
 
 
 class PermissionPresetContract(BaseModel):
-    """A permission preset that defines filesystem, network, and secret access."""
+    """Contract for permission preset YAML files."""
 
-    id: str
-    allowed_workspaces: str
-    filesystem: Dict[str, List[str]] = Field(default_factory=lambda: {
-        "writable_paths": [],
-        "readonly_paths": ["**"],
-        "forbidden_paths": [],
-    })
-    network_access: str
-    secret_allowlist: List[str] = Field(default_factory=list)
+    preset_id: str
+    workspace: str
+    repo_write: bool
+    secrets: str | list[str]
+    network: str
 
-
-def permission_preset_from_dict(data: dict) -> PermissionPresetContract:
-    """Validate a raw permission preset YAML dict against PermissionPresetContract.
-
-    Raises:
-        ContractValidationError: If the data fails validation.
-    """
-    try:
-        return PermissionPresetContract.model_validate(data)
-    except ValidationError as e:
-        preset_id = data.get("id", "unknown")
-        raise ContractValidationError(
-            f"Permission preset '{preset_id}' validation failed: {e}"
-        ) from e
+    @field_validator("preset_id")
+    @classmethod
+    def preset_id_not_empty(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("preset_id must not be empty")
+        return v.strip()
 
 
-# ──────────────────────────────────────────────
-# Team Contract
-# ──────────────────────────────────────────────
+def permission_preset_from_dict(data: dict[str, Any]) -> PermissionPresetContract:
+    """Convert a raw dict (from YAML) to a PermissionPresetContract."""
+    return PermissionPresetContract(
+        preset_id=data.get("preset_id", data.get("id", "")),
+        workspace=data.get("workspace", ""),
+        repo_write=data.get("repo_write", False),
+        secrets=data.get("secrets", []),
+        network=data.get("network", ""),
+    )
+
+
+# ── Team ───────────────────────────────────────────────────────────────────────
 
 
 class TeamContract(BaseModel):
-    """A formal team composition contract.
-
-    Maps a team ID to its agent roster. Each agent ID must resolve
-    to a RoleContract in the role inventory.
-    """
+    """Contract for team YAML files."""
 
     id: str
     name: str
-    description: str
-    agents: List[str] = Field(min_length=1)
-    optional_agents: Dict[str, bool] = Field(default_factory=dict)
+    agents: list[str]
+    optional_agents: list[str] = []
 
-    @model_validator(mode="after")
-    def _no_duplicate_agents(self) -> "TeamContract":
-        seen = set()
-        for a in self.agents:
-            if a in seen:
-                raise ValueError(f"Duplicate agent '{a}' in team '{self.id}'")
-            seen.add(a)
-        return self
+    @field_validator("id")
+    @classmethod
+    def id_not_empty(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("team id must not be empty")
+        return v.strip()
+
+    @field_validator("agents")
+    @classmethod
+    def agents_not_empty(cls, v: list[str]) -> list[str]:
+        if not v:
+            raise ValueError("team must have at least one agent")
+        return v
 
 
-# ──────────────────────────────────────────────
-# Role Contract
-# ──────────────────────────────────────────────
+def team_from_dict(data: dict[str, Any]) -> TeamContract:
+    """Convert a raw dict (from YAML) to a TeamContract.
+
+    Handles both list and dict formats for optional_agents.
+    Dict format: {agent_id: enabled_bool} -> extracts keys.
+    """
+    optional = data.get("optional_agents", data.get("optional", {}))
+    if isinstance(optional, dict):
+        optional_list = list(optional.keys())
+    elif isinstance(optional, list):
+        optional_list = optional
+    else:
+        optional_list = []
+    return TeamContract(
+        id=data.get("id", data.get("team", "")),
+        name=data.get("name", data.get("id", "")),
+        agents=data.get("agents", data.get("members", [])),
+        optional_agents=optional_list,
+    )
+
+
+# ── Role ───────────────────────────────────────────────────────────────────────
 
 
 class RoleContract(BaseModel):
-    """A formal role definition contract.
-
-    Captures identity (Role pillar), task scope, and boundary
-    constraints. The permission_preset must resolve to a known
-    preset in the permission presets inventory.
-    """
+    """Contract for role YAML files."""
 
     id: str
     name: str
     description: str
     mission: str
-    non_goals: str
+    non_goals: str = ""
     permission_preset: str
-    allowed_tasks: List[str] = Field(min_length=1)
-    forbidden_tasks: List[str] = Field(default_factory=list)
-    allowed_commands: List[str] = Field(default_factory=list)
-    denied_commands: List[str] = Field(default_factory=list)
-    handoff: Dict[str, Any] = Field(default_factory=dict)
-    completion_gates: Dict[str, Any] = Field(default_factory=dict)
+    allowed_tasks: list[str] = []
+    forbidden_tasks: list[str] = []
+    allowed_commands: list[str] = []
+    denied_commands: list[str] = []
+    handoff_required_outputs: list[str] = []
+    completion_gates_required: list[str] = []
+    allowed_workspaces: list[str] = []
+    allowed_paths: list[str] = []
+    readonly_paths: list[str] = []
+    forbidden_paths: list[str] = []
+    network_access: str = ""
+    secret_allowlist: list[str] = []
 
-    @model_validator(mode="after")
-    def _handoff_has_required_outputs(self) -> "RoleContract":
-        """Handoff must specify at least one required output."""
-        outputs = self.handoff.get("required_outputs", [])
-        if not outputs:
-            raise ValueError(
-                f"Role '{self.id}' handoff has no required_outputs"
-            )
-        return self
+    # v0.2: handoff contract reference (optional, replaces inline handoff)
+    handoff_contract: str | None = None
 
-    @model_validator(mode="after")
-    def _completion_has_required_gates(self) -> "RoleContract":
-        """Completion gates must specify at least one required gate."""
-        required = self.completion_gates.get("required", [])
-        if not required:
-            raise ValueError(
-                f"Role '{self.id}' completion_gates has no required gates"
-            )
-        return self
+    # v0.2: provenance metadata
+    source_repository: str | None = None
+    source_ref: str | None = None
+    source_path: str | None = None
+    source_hash: str | None = None
+
+    @field_validator("id")
+    @classmethod
+    def id_not_empty(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("role id must not be empty")
+        return v.strip()
+
+    @field_validator("permission_preset")
+    @classmethod
+    def preset_not_empty(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("permission_preset must not be empty")
+        return v.strip()
 
 
-# ──────────────────────────────────────────────
-# Handoff Contract
-# ──────────────────────────────────────────────
+def role_from_dict(data: dict[str, Any]) -> RoleContract:
+    """Convert a raw dict (from YAML) to a RoleContract."""
+    handoff = data.get("handoff", {}) or {}
+    completion = data.get("completion_gates", {}) or {}
+    return RoleContract(
+        id=data.get("id", ""),
+        name=data.get("name", ""),
+        description=data.get("description", ""),
+        mission=data.get("mission", ""),
+        non_goals=data.get("non_goals", ""),
+        permission_preset=data.get("permission_preset", ""),
+        allowed_tasks=data.get("allowed_tasks", []),
+        forbidden_tasks=data.get("forbidden_tasks", []),
+        allowed_commands=data.get("allowed_commands", []),
+        denied_commands=data.get("denied_commands", []),
+        handoff_required_outputs=handoff.get("required_outputs", []),
+        completion_gates_required=completion.get("required", []),
+        allowed_workspaces=data.get("allowed_workspaces", []),
+        allowed_paths=data.get("allowed_paths", []),
+        readonly_paths=data.get("readonly_paths", []),
+        forbidden_paths=data.get("forbidden_paths", []),
+        network_access=data.get("network_access", ""),
+        secret_allowlist=data.get("secret_allowlist", []),
+        # v0.2 fields
+        handoff_contract=data.get("handoff_contract"),
+        source_repository=data.get("source_repository"),
+        source_ref=data.get("source_ref"),
+        source_path=data.get("source_path"),
+        source_hash=data.get("source_hash"),
+    )
+
+
+# ── Fleet Config ───────────────────────────────────────────────────────────────
+
+
+class FleetConfigContract(BaseModel):
+    """Contract for fleet.yaml project configuration."""
+
+    fleet_version: str
+    name: str
+    team: str
+    output_dir: str = ".fleet/generated"
+
+    @field_validator("fleet_version")
+    @classmethod
+    def version_not_empty(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("fleet_version must not be empty")
+        return v.strip()
+
+
+def fleet_config_from_dict(data: dict[str, Any]) -> FleetConfigContract:
+    """Convert a raw dict (from fleet.yaml) to a FleetConfigContract."""
+    return FleetConfigContract(
+        fleet_version=data.get("fleet_version", ""),
+        name=data.get("name", ""),
+        team=data.get("team", ""),
+        output_dir=data.get("output_dir", ".fleet/generated"),
+    )
+
+
+# ── Handoff Contract ───────────────────────────────────────────────────────────
+
+
+class HandoffValidationRule(BaseModel):
+    """A single validation rule within a HandoffContract."""
+
+    field: str
+    required: bool = False
+    min_length: int | None = None
+    max_length: int | None = None
+    enum: list[str] | None = None
+    min_items: int | None = None
+    regex: str | None = None
 
 
 class HandoffContract(BaseModel):
-    """A formal handoff contract between roles.
+    """Contract for handoff YAML files (v0.2+).
 
-    Defines what must be communicated when one role hands off
-    to another (Completion pillar). from_roles and allowed_next_roles
-    must resolve to known RoleContracts.
+    Defines the formal contract between roles when work is handed off.
     """
 
     id: str
-    from_roles: List[str] = Field(min_length=1)
-    allowed_next_roles: List[str] = Field(min_length=1)
-    required_fields: List[str] = Field(min_length=1)
-    validation_rules: List[Dict[str, Any]] = Field(default_factory=list)
+    name: str = ""
+    description: str = ""
+    from_roles: list[str] = []
+    allowed_next_roles: list[str] = []
+    required_fields: list[str] = []
+    validation_rules: list[HandoffValidationRule] = []
+    completion_gate_required: list[str] = []
 
-    @model_validator(mode="after")
-    def _no_self_handoff(self) -> "HandoffContract":
-        """A role should not hand off to itself."""
-        for fr in self.from_roles:
-            if fr in self.allowed_next_roles:
-                raise ValueError(
-                    f"Handoff '{self.id}': role '{fr}' is both sender and receiver"
-                )
-        return self
-
-
-# ──────────────────────────────────────────────
-# YAML → Contract Helpers
-# ──────────────────────────────────────────────
+    @field_validator("id")
+    @classmethod
+    def id_not_empty(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("handoff contract id must not be empty")
+        return v.strip()
 
 
-def team_from_dict(data: dict) -> TeamContract:
-    """Validate a raw YAML dict against TeamContract schema.
-
-    Raises:
-        ContractValidationError: If the data fails validation.
-    """
-    try:
-        return TeamContract.model_validate(data)
-    except ValidationError as e:
-        raise ContractValidationError(
-            f"Team contract validation failed for '{data.get('id', 'unknown')}': {e}"
-        ) from e
-
-
-def role_from_dict(data: dict) -> RoleContract:
-    """Validate a raw YAML dict against RoleContract schema.
-
-    Raises:
-        ContractValidationError: If the data fails validation.
-    """
-    try:
-        return RoleContract.model_validate(data)
-    except ValidationError as e:
-        raise ContractValidationError(
-            f"Role contract validation failed for '{data.get('id', 'unknown')}': {e}"
-        ) from e
+def handoff_from_dict(data: dict[str, Any]) -> HandoffContract:
+    """Convert a raw dict (from YAML) to a HandoffContract."""
+    rules_raw = data.get("validation_rules", []) or []
+    rules = [HandoffValidationRule(**r) if isinstance(r, dict) else r for r in rules_raw]
+    cg = data.get("completion_gate", {}) or {}
+    return HandoffContract(
+        id=data.get("id", ""),
+        name=data.get("name", ""),
+        description=data.get("description", ""),
+        from_roles=data.get("from_roles", []),
+        allowed_next_roles=data.get("allowed_next_roles", []),
+        required_fields=data.get("required_fields", []),
+        validation_rules=rules,
+        completion_gate_required=cg.get("required", []),
+    )
 
 
-# ──────────────────────────────────────────────
-# Cross-Reference Validation
-# ──────────────────────────────────────────────
+# ── Team Proposal ──────────────────────────────────────────────────────────────
 
 
-class CrossReferenceResult(BaseModel):
-    """Result of a single cross-reference validation check."""
+class TeamProposal(BaseModel):
+    """Contract for the Planner/AI output (v0.2+)."""
 
-    check: str
-    status: str  # "passed" | "failed"
-    message: str = ""
+    goal: str
+    recommended_team_id: str
+    rationale: str
+    customizations: dict[str, Any] = {}
+
+    @field_validator("recommended_team_id")
+    @classmethod
+    def team_id_not_empty(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("recommended_team_id must not be empty")
+        return v.strip()
+
+
+# ── Cross-Reference Validation ─────────────────────────────────────────────────
+
+
+class CheckResult:
+    """Result of a single cross-reference check."""
+
+    def __init__(self, status: str, check: str, message: str = ""):
+        self.status = status
+        self.check = check
+        self.message = message
 
 
 def validate_contract_cross_references(
-    teams: List[TeamContract],
-    roles: List[RoleContract],
-    handoffs: Optional[List[HandoffContract]] = None,
-    known_presets: Optional[List[str]] = None,
-) -> List[CrossReferenceResult]:
-    """Validate that all cross-references between contracts resolve.
+    teams: dict[str, TeamContract] | list[TeamContract],
+    roles: dict[str, RoleContract] | list[RoleContract],
+    known_presets: list[str] | None = None,
+    handoff_contracts: dict[str, HandoffContract] | None = None,
+) -> list[CheckResult]:
+    """Validate all cross-references between contracts.
 
-    Checks:
-    1. All team agents have corresponding role contracts
-    2. All role permission_presets resolve to known presets
-    3. All handoff from/allowed_next roles have corresponding role contracts
-    4. No duplicate contract IDs within each type
+    Accepts both dict and list forms for backward compatibility.
+    Returns a list of CheckResult objects.
     """
-    results: List[CrossReferenceResult] = []
+    results: list[CheckResult] = []
 
-    role_ids = {r.id for r in roles}
-    team_ids = {t.id for t in teams}
-    preset_ids = set(known_presets or [])
-    handoff_ids: set[str] = set()
+    # Normalize to dict form
+    if isinstance(teams, list):
+        teams_dict = {t.id: t for t in teams}
+    else:
+        teams_dict = teams
+    if isinstance(roles, list):
+        roles_dict = {r.id: r for r in roles}
+    else:
+        roles_dict = roles
 
-    # ── 1. Team → Role references ──
-    for team in teams:
-        for agent_id in team.agents:
-            if agent_id not in role_ids:
-                results.append(CrossReferenceResult(
-                    check=f"team.{team.id}.agent.{agent_id}",
-                    status="failed",
-                    message=f"Team '{team.id}' references unknown role '{agent_id}'",
-                ))
+    # Resolve known presets: support both dict and list
+    preset_ids: set[str]
+    if known_presets is not None:
+        preset_ids = set(known_presets)
+    else:
+        preset_ids = set()
 
-    if not any(r.status == "failed" for r in results if "team." in r.check):
-        results.append(CrossReferenceResult(
-            check="team_role_references",
-            status="passed",
-            message="All team agents have corresponding role contracts",
-        ))
+    # Team → Role references
+    for team_id, team in teams_dict.items():
+        all_agents = team.agents + team.optional_agents
+        for agent_id in all_agents:
+            check_name = f"team:{team_id}.agent:{agent_id}"
+            if agent_id in roles_dict:
+                results.append(CheckResult("passed", check_name))
+            else:
+                results.append(
+                    CheckResult(
+                        "failed",
+                        check_name,
+                        f"Team '{team_id}' references agent '{agent_id}' "
+                        f"but no role contract with that id exists",
+                    )
+                )
 
-    # ── 2. Role → Permission preset references ──
-    if preset_ids:
-        for role in roles:
-            if role.permission_preset not in preset_ids:
-                results.append(CrossReferenceResult(
-                    check=f"role.{role.id}.permission_preset",
-                    status="failed",
-                    message=(
-                        f"Role '{role.id}' references unknown permission "
-                        f"preset '{role.permission_preset}'"
-                    ),
-                ))
+    # Role → Permission Preset references
+    for role_id, role in roles_dict.items():
+        check_name = f"role:{role_id}.preset:{role.permission_preset}"
+        if role.permission_preset in preset_ids | {"__builtin__"}:
+            results.append(CheckResult("passed", check_name))
+        else:
+            results.append(
+                CheckResult(
+                    "failed",
+                    check_name,
+                    f"Role '{role_id}' references permission preset "
+                    f"'{role.permission_preset}' but no such preset exists",
+                )
+            )
 
-        if not any(r.status == "failed" for r in results if "permission_preset" in r.check):
-            results.append(CrossReferenceResult(
-                check="role_preset_references",
-                status="passed",
-                message="All role permission_presets resolve to known presets",
-            ))
+    # Role → Handoff Contract references (v0.2+)
+    if handoff_contracts is not None:
+        for role_id, role in roles_dict.items():
+            if role.handoff_contract:
+                check_name = f"role:{role_id}.handoff:{role.handoff_contract}"
+                if role.handoff_contract in handoff_contracts:
+                    results.append(CheckResult("passed", check_name))
+                else:
+                    results.append(
+                        CheckResult(
+                            "failed",
+                            check_name,
+                            f"Role '{role_id}' references handoff contract "
+                            f"'{role.handoff_contract}' but no such contract exists",
+                        )
+                    )
 
-    # ── 3. Handoff → Role references ──
-    if handoffs:
-        for hc in handoffs:
-            for role_id in hc.from_roles + hc.allowed_next_roles:
-                if role_id not in role_ids:
-                    results.append(CrossReferenceResult(
-                        check=f"handoff.{hc.id}.role.{role_id}",
-                        status="failed",
-                        message=(
-                            f"Handoff '{hc.id}' references unknown "
-                            f"role '{role_id}'"
-                        ),
-                    ))
+    # Handoff Contract → Role references
+    if handoff_contracts is not None:
+        all_role_ids = set(roles_dict.keys())
+        for hc_id, hc in handoff_contracts.items():
+            for r in hc.from_roles:
+                check_name = f"handoff:{hc_id}.from_role:{r}"
+                if r in all_role_ids:
+                    results.append(CheckResult("passed", check_name))
+                else:
+                    results.append(
+                        CheckResult(
+                            "failed",
+                            check_name,
+                            f"Handoff contract '{hc_id}' references from_role "
+                            f"'{r}' but no role with that id exists",
+                        )
+                    )
+            for r in hc.allowed_next_roles:
+                check_name = f"handoff:{hc_id}.to_role:{r}"
+                if r in all_role_ids:
+                    results.append(CheckResult("passed", check_name))
+                else:
+                    results.append(
+                        CheckResult(
+                            "failed",
+                            check_name,
+                            f"Handoff contract '{hc_id}' references "
+                            f"allowed_next_role '{r}' but no role exists",
+                        )
+                    )
 
-        if not any(r.status == "failed" for r in results if "handoff." in r.check):
-            results.append(CrossReferenceResult(
-                check="handoff_role_references",
-                status="passed",
-                message="All handoff contracts reference known roles",
-            ))
+    # No duplicate IDs across teams and roles
+    all_ids = set(teams_dict.keys()) & set(roles_dict.keys())
+    for dup_id in all_ids:
+        results.append(
+            CheckResult(
+                "failed",
+                f"duplicate_id:{dup_id}",
+                f"ID '{dup_id}' is used by both a team and a role",
+            )
+        )
 
-    # ── 4. No duplicate contract IDs ──
-    seen_ids: dict[str, str] = {}
-    # Check teams
-    for t in teams:
-        if t.id in seen_ids:
-            results.append(CrossReferenceResult(
-                check=f"duplicate_id.{t.id}",
-                status="failed",
-                message=f"Duplicate contract ID '{t.id}' (team conflicts with {seen_ids[t.id]})",
-            ))
-        seen_ids[t.id] = "team"
-
-    # Check roles
-    for r in roles:
-        if r.id in seen_ids:
-            results.append(CrossReferenceResult(
-                check=f"duplicate_id.{r.id}",
-                status="failed",
-                message=f"Duplicate contract ID '{r.id}' (role conflicts with {seen_ids[r.id]})",
-            ))
-        seen_ids[r.id] = "role"
-
-    # Check handoffs
-    if handoffs:
-        for hc in handoffs:
-            if hc.id in seen_ids:
-                results.append(CrossReferenceResult(
-                    check=f"duplicate_id.{hc.id}",
-                    status="failed",
-                    message=f"Duplicate contract ID '{hc.id}' (handoff conflicts with {seen_ids[hc.id]})",
-                ))
-            seen_ids[hc.id] = "handoff"
-
-    if not any(r.status == "failed" for r in results if "duplicate_id" in r.check):
-        results.append(CrossReferenceResult(
-            check="no_duplicate_ids",
-            status="passed",
-            message="No duplicate contract IDs across all contract types",
-        ))
-
-    # Add a single all-clear result if everything passed
-    if not any(r.status == "failed" for r in results):
-        results.append(CrossReferenceResult(
-            check="all_cross_references",
-            status="passed",
-            message="All contract cross-references resolved successfully",
-        ))
+    # No duplicate IDs across handoffs and teams/roles
+    if handoff_contracts is not None:
+        for hc_id in handoff_contracts:
+            if hc_id in teams_dict or hc_id in roles_dict:
+                results.append(
+                    CheckResult(
+                        "failed",
+                        f"duplicate_id:{hc_id}",
+                        f"ID '{hc_id}' is used by a handoff contract and "
+                        f"also a team/role",
+                    )
+                )
 
     return results

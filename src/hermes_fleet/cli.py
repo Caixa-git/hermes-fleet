@@ -261,6 +261,7 @@ def validate(
     from hermes_fleet.contracts import (
         team_from_dict,
         role_from_dict,
+        handoff_from_dict,
         validate_contract_cross_references,
     )
     from hermes_fleet.teams import (
@@ -269,6 +270,8 @@ def validate(
         list_available_roles,
         load_team,
         load_role,
+        list_available_handoffs,
+        load_handoff,
     )
 
     presets_dir = _get_presets_dir()
@@ -288,16 +291,24 @@ def validate(
         if data is not None:
             roles.append(role_from_dict(data))
 
+    # Load all handoff contracts
+    handoffs_dict = {}
+    for hid in list_available_handoffs():
+        data = load_handoff(hid)
+        if data is not None:
+            hc = handoff_from_dict(data)
+            handoffs_dict[hc.id] = hc
+
     # Run cross-reference validation
     results = validate_contract_cross_references(
-        teams, roles, known_presets=known_presets
+        teams, roles, known_presets=known_presets, handoff_contracts=handoffs_dict
     )
 
     passed = sum(1 for r in results if r.status == "passed")
     failed = sum(1 for r in results if r.status == "failed")
 
     console.print("\nPreset contract validation results:")
-    console.print(f"  Contracts loaded: {len(teams)} teams, {len(roles)} roles")
+    console.print(f"  Contracts loaded: {len(teams)} teams, {len(roles)} roles, {len(handoffs_dict)} handoffs")
     console.print(f"  Passed: {passed}")
     console.print(f"  Failed: {failed}")
 

@@ -1,0 +1,34 @@
+# Handoff Contract: QA → Developer/Orchestrator Test Feedback
+id: qa-feedback
+name: QA Test Feedback
+description: QA tester reports test results, including failures and regressions.
+from_roles:
+  - qa-tester
+allowed_next_roles:
+  - fullstack-developer
+  - frontend-developer
+  - backend-developer
+  - orchestrator
+required_fields:
+  - test_summary
+  - pass_count
+  - fail_count
+  - failures
+validation_rules:
+  - field: test_summary
+    required: true
+    min_length: 10
+  - field: pass_count
+    required: true
+  - field: fail_count
+    required: true
+  - field: failures
+    required: false
+    min_items: 0
+  - field: regressions
+    required: false
+    min_items: 0
+completion_gate:
+  required:
+    - tests_executed
+    - results_recorded

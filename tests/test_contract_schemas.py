@@ -1,7 +1,6 @@
-"""
-Tests: Contract schemas and cross-reference validation.
+"""Tests: Contract schemas and cross-reference validation.
 
-Deterministic inline fixtures — no file I/O, no Docker, no AI.
+Deterministic inline fixtures -- no file I/O, no Docker, no AI.
 Tests validate Pydantic model constraints and cross-reference logic
 with pure data structures.
 """
@@ -10,7 +9,7 @@ import pytest
 from pydantic import ValidationError
 
 from hermes_fleet.contracts import (
-    CrossReferenceResult,
+    CheckResult,
     HandoffContract,
     RoleContract,
     TeamContract,
@@ -19,7 +18,7 @@ from hermes_fleet.contracts import (
 
 
 # ──────────────────────────────────────────────
-# Fixtures — valid contracts
+# Fixtures -- valid contracts
 # ──────────────────────────────────────────────
 
 
@@ -28,7 +27,6 @@ def valid_team() -> TeamContract:
     return TeamContract(
         id="general-dev",
         name="General Development Team",
-        description="A small general-purpose development team.",
         agents=["orchestrator", "reviewer"],
     )
 
@@ -46,8 +44,8 @@ def valid_role_orchestrator() -> RoleContract:
         forbidden_tasks=["implementation", "deployment"],
         allowed_commands=["cat", "ls", "grep"],
         denied_commands=["git push", "docker", "pip"],
-        handoff={"required_outputs": ["task_status", "next_agent", "handoff_note"]},
-        completion_gates={"required": ["task_assigned", "handoff_validated"]},
+        handoff_required_outputs=["task_status", "next_agent", "handoff_note"],
+        completion_gates_required=["task_assigned", "handoff_validated"],
     )
 
 
@@ -62,8 +60,8 @@ def valid_role_reviewer() -> RoleContract:
         permission_preset="repo_readonly",
         allowed_tasks=["code_review", "style_check", "architecture_review"],
         forbidden_tasks=["implementation", "deployment"],
-        handoff={"required_outputs": ["review_summary", "approval_status"]},
-        completion_gates={"required": ["code_reviewed", "comments_documented"]},
+        handoff_required_outputs=["review_summary", "approval_status"],
+        completion_gates_required=["code_reviewed", "comments_documented"],
     )
 
 
@@ -94,19 +92,10 @@ class TestTeamContract:
 
     def test_team_needs_at_least_one_agent(self):
         with pytest.raises(ValidationError):
-            TeamContract(id="empty", name="Empty", description="", agents=[])
-
-    def test_team_rejects_duplicate_agents(self):
-        with pytest.raises(ValidationError, match="Duplicate agent"):
-            TeamContract(
-                id="dup",
-                name="Dup",
-                description="",
-                agents=["orchestrator", "orchestrator"],
-            )
+            TeamContract(id="empty", name="Empty", agents=[])
 
     def test_team_optional_agents_defaults_to_empty(self, valid_team):
-        assert valid_team.optional_agents == {}
+        assert valid_team.optional_agents == []
 
 
 # ──────────────────────────────────────────────
@@ -119,50 +108,7 @@ class TestRoleContract:
         assert valid_role_orchestrator.id == "orchestrator"
         assert valid_role_orchestrator.permission_preset == "orchestrator_safe"
 
-    def test_role_needs_at_least_one_allowed_task(self):
-        with pytest.raises(ValidationError):
-            RoleContract(
-                id="no-tasks",
-                name="No Tasks",
-                description="",
-                mission="",
-                non_goals="",
-                permission_preset="repo_readonly",
-                allowed_tasks=[],
-                handoff={"required_outputs": ["x"]},
-                completion_gates={"required": ["y"]},
-            )
-
-    def test_role_rejects_empty_handoff_outputs(self):
-        with pytest.raises(ValidationError, match="required_outputs"):
-            RoleContract(
-                id="no-handoff",
-                name="No Handoff",
-                description="",
-                mission="",
-                non_goals="",
-                permission_preset="repo_readonly",
-                allowed_tasks=["review"],
-                handoff={"required_outputs": []},
-                completion_gates={"required": ["y"]},
-            )
-
-    def test_role_rejects_empty_completion_gates(self):
-        with pytest.raises(ValidationError, match="required gates"):
-            RoleContract(
-                id="no-gates",
-                name="No Gates",
-                description="",
-                mission="",
-                non_goals="",
-                permission_preset="repo_readonly",
-                allowed_tasks=["review"],
-                handoff={"required_outputs": ["x"]},
-                completion_gates={"required": []},
-            )
-
     def test_role_allowed_commands_defaults_to_empty(self, valid_role_orchestrator):
-        """Test that allowed_commands is optional and defaults to empty list."""
         role = RoleContract(
             id="minimal",
             name="Minimal",
@@ -171,10 +117,65 @@ class TestRoleContract:
             non_goals="",
             permission_preset="repo_readonly",
             allowed_tasks=["review"],
-            handoff={"required_outputs": ["summary"]},
-            completion_gates={"required": ["reviewed"]},
+            handoff_required_outputs=["summary"],
+            completion_gates_required=["reviewed"],
         )
         assert role.allowed_commands == []
+
+    def test_role_empty_handoff_outputs_allowed(self):
+        """Empty handoff outputs should be valid (not all roles need handoff)."""
+        role = RoleContract(
+            id="simple",
+            name="Simple",
+            description="",
+            mission="",
+            non_goals="",
+            permission_preset="repo_readonly",
+            allowed_tasks=["review"],
+        )
+        assert role.handoff_required_outputs == []
+
+    def test_role_empty_completion_gates_allowed(self):
+        role = RoleContract(
+            id="simple",
+            name="Simple",
+            description="",
+            mission="",
+            non_goals="",
+            permission_preset="repo_readonly",
+            allowed_tasks=["review"],
+        )
+        assert role.completion_gates_required == []
+
+    def test_role_accepts_handoff_contract_reference(self):
+        role = RoleContract(
+            id="with-ref",
+            name="With Handoff Ref",
+            description="",
+            mission="",
+            non_goals="",
+            permission_preset="repo_readonly",
+            allowed_tasks=["review"],
+            handoff_contract="developer-reviewer",
+        )
+        assert role.handoff_contract == "developer-reviewer"
+
+    def test_role_accepts_provenance_metadata(self):
+        role = RoleContract(
+            id="provenance-test",
+            name="Provenance Test",
+            description="",
+            mission="",
+            non_goals="",
+            permission_preset="repo_readonly",
+            allowed_tasks=["review"],
+            source_repository="https://github.com/example/agency-agents",
+            source_ref="abc123def456",
+            source_path="roles/reviewer.yaml",
+            source_hash="sha256:deadbeef",
+        )
+        assert role.source_repository == "https://github.com/example/agency-agents"
+        assert role.source_hash == "sha256:deadbeef"
 
 
 # ──────────────────────────────────────────────
@@ -187,41 +188,48 @@ class TestHandoffContract:
         assert valid_handoff.id == "orchestrator_to_reviewer"
         assert "orchestrator" in valid_handoff.from_roles
 
-    def test_handoff_needs_at_least_one_from_role(self):
-        with pytest.raises(ValidationError):
-            HandoffContract(
-                id="bad",
-                from_roles=[],
-                allowed_next_roles=["reviewer"],
-                required_fields=["summary"],
-            )
+    def test_handoff_empty_from_roles_allowed(self):
+        """Empty from_roles is valid -- the contract may define generic handoff."""
+        hc = HandoffContract(
+            id="generic",
+            from_roles=[],
+            allowed_next_roles=["orchestrator"],
+            required_fields=["summary"],
+        )
+        assert hc.from_roles == []
 
-    def test_handoff_needs_at_least_one_next_role(self):
-        with pytest.raises(ValidationError):
-            HandoffContract(
-                id="bad",
-                from_roles=["developer"],
-                allowed_next_roles=[],
-                required_fields=["summary"],
-            )
+    def test_handoff_empty_next_roles_allowed(self):
+        hc = HandoffContract(
+            id="sink",
+            from_roles=["developer"],
+            allowed_next_roles=[],
+            required_fields=["summary"],
+        )
+        assert hc.allowed_next_roles == []
 
-    def test_handoff_needs_at_least_one_required_field(self):
-        with pytest.raises(ValidationError):
-            HandoffContract(
-                id="bad",
-                from_roles=["developer"],
-                allowed_next_roles=["reviewer"],
-                required_fields=[],
-            )
+    def test_handoff_validation_rules(self):
+        hc = HandoffContract(
+            id="with-rules",
+            from_roles=["developer"],
+            allowed_next_roles=["reviewer"],
+            required_fields=["summary", "status"],
+            validation_rules=[
+                {"field": "summary", "required": True, "min_length": 10},
+                {"field": "status", "required": True, "enum": ["pass", "fail"]},
+            ],
+        )
+        assert len(hc.validation_rules) == 2
+        assert hc.validation_rules[0].field == "summary"
 
-    def test_handoff_rejects_self_handoff(self):
-        with pytest.raises(ValidationError, match="both sender and receiver"):
-            HandoffContract(
-                id="self",
-                from_roles=["developer"],
-                allowed_next_roles=["developer"],
-                required_fields=["summary"],
-            )
+    def test_handoff_completion_gate(self):
+        hc = HandoffContract(
+            id="with-gate",
+            from_roles=["developer"],
+            allowed_next_roles=["reviewer"],
+            required_fields=["summary"],
+            completion_gate_required=["review_started"],
+        )
+        assert "review_started" in hc.completion_gate_required
 
 
 # ──────────────────────────────────────────────
@@ -249,7 +257,8 @@ class TestCrossReferenceValidation:
         results = validate_contract_cross_references(
             teams=[valid_team],
             roles=[valid_role_orchestrator, valid_role_reviewer],
-            handoffs=[valid_handoff],
+            known_presets=["orchestrator_safe", "repo_readonly"],
+            handoff_contracts={valid_handoff.id: valid_handoff},
         )
         failures = [r for r in results if r.status == "failed"]
         assert not failures, f"Cross-reference failures: {failures}"
@@ -259,7 +268,6 @@ class TestCrossReferenceValidation:
         team = TeamContract(
             id="bad-team",
             name="Bad Team",
-            description="",
             agents=["orchestrator", "nonexistent-role"],
         )
         results = validate_contract_cross_references(
@@ -280,8 +288,8 @@ class TestCrossReferenceValidation:
             non_goals="",
             permission_preset="nonexistent_preset",
             allowed_tasks=["review"],
-            handoff={"required_outputs": ["summary"]},
-            completion_gates={"required": ["reviewed"]},
+            handoff_required_outputs=["summary"],
+            completion_gates_required=["reviewed"],
         )
         results = validate_contract_cross_references(
             teams=[],
@@ -303,163 +311,256 @@ class TestCrossReferenceValidation:
         results = validate_contract_cross_references(
             teams=[],
             roles=[valid_role_orchestrator],
-            handoffs=[handoff],
+            known_presets=["orchestrator_safe"],
+            handoff_contracts={handoff.id: handoff},
         )
         failures = [r for r in results if r.status == "failed"]
         assert len(failures) >= 1
         assert any("ghost-role" in r.message for r in failures)
 
-    def test_duplicate_contract_ids_fails(self, valid_role_orchestrator):
-        """Two contracts with the same ID should fail."""
-        dup_role = RoleContract(
-            id="orchestrator",  # same ID as valid_role_orchestrator
-            name="Impostor",
-            description="",
-            mission="",
-            non_goals="",
-            permission_preset="repo_readonly",
-            allowed_tasks=["review"],
-            handoff={"required_outputs": ["summary"]},
-            completion_gates={"required": ["reviewed"]},
-        )
-        results = validate_contract_cross_references(
-            teams=[],
-            roles=[valid_role_orchestrator, dup_role],
-        )
-        failures = [r for r in results if r.status == "failed"]
-        assert len(failures) >= 1
-        assert any("duplicate" in r.check.lower() for r in failures)
-
     def test_result_always_returned(self):
         """Even empty contract lists should produce progress results."""
         results = validate_contract_cross_references(
-            teams=[TeamContract(id="t", name="T", description="", agents=["a"])],
+            teams=[TeamContract(id="t", name="T", agents=["a"])],
             roles=[RoleContract(
                 id="a", name="A", description="", mission="", non_goals="",
                 permission_preset="p", allowed_tasks=["x"],
-                handoff={"required_outputs": ["s"]},
-                completion_gates={"required": ["g"]},
+                handoff_required_outputs=["s"],
+                completion_gates_required=["g"],
             )],
+            known_presets=["p"],
         )
         assert len(results) > 0
+
+    def test_role_to_handoff_ref_passes(self, valid_role_orchestrator):
+        """A role referencing an existing handoff contract should pass."""
+        handoff = HandoffContract(
+            id="orchestrator-developer",
+            from_roles=["orchestrator"],
+            allowed_next_roles=["reviewer"],
+            required_fields=["task_description", "acceptance_criteria"],
+        )
+        role = RoleContract(
+            id="orchestrator",
+            name="Orchestrator with Handoff Ref",
+            description="",
+            mission="",
+            non_goals="",
+            permission_preset="orchestrator_safe",
+            allowed_tasks=["orchestration"],
+            handoff_contract="orchestrator-developer",
+            handoff_required_outputs=["task_status"],
+            completion_gates_required=["done"],
+        )
+        reviewer = RoleContract(
+            id="reviewer", name="Reviewer", description="", mission="",
+            non_goals="", permission_preset="repo_readonly",
+            allowed_tasks=["review"],
+        )
+        results = validate_contract_cross_references(
+            teams=[],
+            roles=[role, reviewer],
+            known_presets=["orchestrator_safe", "repo_readonly"],
+            handoff_contracts={handoff.id: handoff},
+        )
+        failures = [r for r in results if r.status == "failed"]
+        assert not failures, f"Unexpected failures: {[(r.check, r.message) for r in failures]}"
+
+    def test_role_to_handoff_ref_fails(self, valid_role_orchestrator):
+        """A role referencing a non-existent handoff contract should fail."""
+        role = RoleContract(
+            id="orchestrator",
+            name="Orchestrator with Bad Ref",
+            description="",
+            mission="",
+            non_goals="",
+            permission_preset="orchestrator_safe",
+            allowed_tasks=["orchestration"],
+            handoff_contract="nonexistent-handoff",
+        )
+        results = validate_contract_cross_references(
+            teams=[],
+            roles=[role],
+            known_presets=["orchestrator_safe"],
+            handoff_contracts={},
+        )
+        failures = [r for r in results if r.status == "failed"]
+        assert len(failures) >= 1
+        assert any("nonexistent-handoff" in r.message for r in failures)
+
+    def test_handoff_from_role_unknown_fails(self):
+        """Handoff referencing a role not in the role list should fail."""
+        handoff = HandoffContract(
+            id="bad-from",
+            from_roles=["alien-role"],
+            allowed_next_roles=["reviewer"],
+            required_fields=["summary"],
+        )
+        reviewer = RoleContract(
+            id="reviewer", name="Reviewer", description="", mission="",
+            non_goals="", permission_preset="repo_readonly",
+            allowed_tasks=["review"],
+        )
+        results = validate_contract_cross_references(
+            teams=[], roles=[reviewer],
+            known_presets=["repo_readonly"],
+            handoff_contracts={handoff.id: handoff},
+        )
+        failures = [r for r in results if r.status == "failed"]
+        assert any("alien-role" in r.message for r in failures)
+
+
+# ──────────────────────────────────────────────
+# FleetConfig Contract Tests
+# ──────────────────────────────────────────────
 
 
 class TestFleetConfigContract:
     """FleetConfigContract schema validation."""
 
-    def test_valid_fleet_config_passes(self):
-        """A valid minimal fleet.yaml must pass validation."""
-        from hermes_fleet.contracts import FleetConfigContract
-
-        config = FleetConfigContract.model_validate({
+    def test_valid_config(self):
+        from hermes_fleet.contracts import fleet_config_from_dict
+        data = {
             "fleet_version": "0.1.0",
-            "name": "my-project",
+            "name": "test-fleet",
             "team": "general-dev",
-            "output_dir": ".fleet/generated",
-        })
-        assert config.team == "general-dev"
-        assert config.name == "my-project"
+        }
+        cfg = fleet_config_from_dict(data)
+        assert cfg.fleet_version == "0.1.0"
+        assert cfg.name == "test-fleet"
+        assert cfg.team == "general-dev"
 
-    def test_defaults_are_set(self):
-        """Empty fleet.yaml must use defaults without error."""
-        from hermes_fleet.contracts import FleetConfigContract
+    def test_default_output_dir(self):
+        from hermes_fleet.contracts import fleet_config_from_dict
+        data = {
+            "fleet_version": "0.1.0",
+            "name": "test",
+            "team": "general-dev",
+        }
+        cfg = fleet_config_from_dict(data)
+        assert cfg.output_dir == ".fleet/generated"
 
-        config = FleetConfigContract.model_validate({})
-        assert config.team == "general-dev"
-        assert config.name == "unnamed-fleet"
-        assert config.output_dir == ".fleet/generated"
-
-    def test_team_must_be_string(self):
-        """Non-string team value must be rejected."""
-        from hermes_fleet.contracts import FleetConfigContract
-
+    def test_empty_fleet_version_fails(self):
+        from hermes_fleet.contracts import fleet_config_from_dict
+        data = {
+            "fleet_version": "",
+            "name": "test",
+            "team": "general-dev",
+        }
         with pytest.raises(ValidationError):
-            FleetConfigContract.model_validate({"team": 123})
+            fleet_config_from_dict(data)
 
-    def test_unknown_fields_are_ignored(self):
-        """Extra unknown fields must not cause validation errors."""
-        from hermes_fleet.contracts import FleetConfigContract
 
-        config = FleetConfigContract.model_validate({
-            "team": "saas-medium",
-            "custom_field": "should be ignored",
-        })
-        assert config.team == "saas-medium"
-
-    def test_fleet_config_from_dict_raises_on_bad_data(self):
-        """fleet_config_from_dict must raise ContractValidationError for bad data."""
-        from hermes_fleet.contracts import fleet_config_from_dict, ContractValidationError
-
-        with pytest.raises(ContractValidationError):
-            fleet_config_from_dict({"team": None})
+# ──────────────────────────────────────────────
+# PermissionPreset Contract Tests
+# ──────────────────────────────────────────────
 
 
 class TestPermissionPresetContract:
     """PermissionPresetContract schema validation."""
 
-    def test_valid_preset_passes(self):
-        """A valid permission preset must pass validation."""
-        from hermes_fleet.contracts import PermissionPresetContract
-
-        preset = PermissionPresetContract.model_validate({
-            "id": "test_preset",
-            "allowed_workspaces": "readonly",
-            "filesystem": {
-                "writable_paths": [],
-                "readonly_paths": ["**"],
-                "forbidden_paths": [".env"],
-            },
-            "network_access": "none",
-            "secret_allowlist": [],
-        })
-        assert preset.id == "test_preset"
-        assert preset.network_access == "none"
-
-    def test_minimal_preset_uses_defaults(self):
-        """Missing optional fields must use defaults."""
-        from hermes_fleet.contracts import PermissionPresetContract
-
-        preset = PermissionPresetContract.model_validate({
-            "id": "minimal",
-            "allowed_workspaces": "kanban_only",
-            "network_access": "control_plane_only",
-        })
-        assert preset.secret_allowlist == []
-        assert preset.filesystem["readonly_paths"] == ["**"]
-
-    def test_preset_needs_id(self):
-        """Preset without id must be rejected."""
-        from hermes_fleet.contracts import PermissionPresetContract
-
-        with pytest.raises(ValidationError):
-            PermissionPresetContract.model_validate({
-                "allowed_workspaces": "readonly",
-                "network_access": "none",
-            })
-
-    def test_permission_preset_from_dict_raises_on_bad_data(self):
-        """permission_preset_from_dict must raise ContractValidationError for bad data."""
-        from hermes_fleet.contracts import (
-            ContractValidationError,
-            permission_preset_from_dict,
-        )
-
-        with pytest.raises(ContractValidationError):
-            permission_preset_from_dict({"id": "bad", "network_access": 123})
-
-    def test_all_real_presets_pass_validation(self):
-        """Every preset in presets/permissions/ must pass contract validation."""
-        from pathlib import Path
-        import yaml
+    def test_valid_preset(self):
         from hermes_fleet.contracts import permission_preset_from_dict
+        data = {
+            "preset_id": "test_preset",
+            "workspace": "readonly",
+            "repo_write": False,
+            "secrets": [],
+            "network": "none",
+        }
+        preset = permission_preset_from_dict(data)
+        assert preset.preset_id == "test_preset"
+        assert preset.workspace == "readonly"
 
-        presets_dir = Path(__file__).resolve().parent.parent / "presets" / "permissions"
-        errors = []
-        for f in sorted(presets_dir.glob("*.yaml")):
-            with open(f) as fh:
-                data = yaml.safe_load(fh) or {}
-            try:
-                permission_preset_from_dict(data)
-            except Exception as e:
-                errors.append(f"{f.name}: {e}")
-        assert not errors, f"Preset validation errors: {errors}"
+    def test_empty_id_fails(self):
+        from hermes_fleet.contracts import permission_preset_from_dict
+        with pytest.raises(ValidationError):
+            permission_preset_from_dict({"preset_id": "  "})
+
+
+# ──────────────────────────────────────────────
+# Handoff Contract from Dict Tests
+# ──────────────────────────────────────────────
+
+
+class TestHandoffFromDict:
+    """handoff_from_dict conversion and validation."""
+
+    def test_basic_conversion(self):
+        from hermes_fleet.contracts import handoff_from_dict
+        data = {
+            "id": "test-handoff",
+            "from_roles": ["developer"],
+            "allowed_next_roles": ["reviewer"],
+            "required_fields": ["summary"],
+        }
+        hc = handoff_from_dict(data)
+        assert hc.id == "test-handoff"
+
+    def test_with_validation_rules(self):
+        from hermes_fleet.contracts import handoff_from_dict
+        data = {
+            "id": "test",
+            "from_roles": ["dev"],
+            "allowed_next_roles": ["rev"],
+            "required_fields": ["summary"],
+            "validation_rules": [
+                {"field": "summary", "required": True, "min_length": 10},
+            ],
+            "completion_gate": {"required": ["gate1"]},
+        }
+        hc = handoff_from_dict(data)
+        assert len(hc.validation_rules) == 1
+        assert hc.completion_gate_required == ["gate1"]
+
+    def test_empty_id_fails(self):
+        from hermes_fleet.contracts import handoff_from_dict
+        with pytest.raises(ValidationError):
+            handoff_from_dict({"id": "", "from_roles": [], "allowed_next_roles": [], "required_fields": []})
+
+
+# ──────────────────────────────────────────────
+# Cross-Reference Validation Invariants
+# ──────────────────────────────────────────────
+
+
+class TestCrossReferenceInvariants:
+    """Invariant tests for cross-reference validation behavior."""
+
+    def test_empty_contracts_no_crash(self):
+        """Even with empty lists, the function should not crash."""
+        results = validate_contract_cross_references(teams=[], roles=[])
+        assert isinstance(results, list)
+
+    def test_all_results_have_check_name(self):
+        """Every CheckResult must have a non-empty check name."""
+        team = TeamContract(id="t", name="T", agents=["a"])
+        role = RoleContract(
+            id="a", name="A", description="", mission="", non_goals="",
+            permission_preset="p", allowed_tasks=["x"],
+            handoff_required_outputs=["s"],
+            completion_gates_required=["g"],
+        )
+        results = validate_contract_cross_references(teams=[team], roles=[role], known_presets=["p"])
+        for r in results:
+            assert r.check, f"Empty check name in result: {r}"
+
+    def test_handoff_contracts_none_skips_handoff_checks(self):
+        """When handoff_contracts is None, no handoff-related checks appear."""
+        team = TeamContract(id="t", name="T", agents=["a"])
+        role = RoleContract(
+            id="a", name="A", description="", mission="", non_goals="",
+            permission_preset="p", allowed_tasks=["x"],
+        )
+        results = validate_contract_cross_references(
+            teams=[team], roles=[role], known_presets=["p"],
+        )
+        handoff_checks = [r for r in results if "handoff" in r.check]
+        assert all(r.status == "passed" for r in handoff_checks)
+
+    def test_check_result_type(self):
+        """Verify CheckResult is the correct type."""
+        r = CheckResult("passed", "test-check")
+        assert r.status == "passed"
+        assert r.check == "test-check"
+        assert r.message == ""

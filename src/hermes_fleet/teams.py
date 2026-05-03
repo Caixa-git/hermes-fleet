@@ -7,7 +7,13 @@ from typing import Optional
 
 import yaml
 
-from hermes_fleet.contracts import ContractValidationError, role_from_dict, team_from_dict
+from hermes_fleet.contracts import (
+    ContractValidationError,
+    handoff_from_dict,
+    permission_preset_from_dict,
+    role_from_dict,
+    team_from_dict,
+)
 
 
 def _get_presets_dir() -> Path:
@@ -57,3 +63,44 @@ def list_available_roles() -> list[str]:
     return sorted(
         f.stem for f in roles_dir.glob("*.yaml") if f.stem != "__init__"
     )
+
+
+def load_handoff(handoff_id: str) -> Optional[dict]:
+    """Load a handoff contract from presets/handoffs/<handoff_id>.yaml."""
+    handoff_path = _get_presets_dir() / "handoffs" / f"{handoff_id}.yaml"
+    if not handoff_path.exists():
+        return None
+    with open(handoff_path) as f:
+        data = yaml.safe_load(f)
+    handoff_from_dict(data)
+    return data
+
+
+def list_available_handoffs() -> list[str]:
+    """List all available handoff contract preset IDs."""
+    handoffs_dir = _get_presets_dir() / "handoffs"
+    if not handoffs_dir.exists():
+        return []
+    return sorted(
+        f.stem for f in handoffs_dir.glob("*.yaml") if f.stem != "__init__"
+    )
+
+
+def load_all_handoffs() -> dict[str, dict]:
+    """Load all handoff contracts as {id: data}."""
+    result: dict[str, dict] = {}
+    for hid in list_available_handoffs():
+        data = load_handoff(hid)
+        if data is not None:
+            result[hid] = data
+    return result
+
+
+def load_all_permission_presets() -> dict[str, dict]:
+    """Load all permission presets as {id: data}."""
+    result: dict[str, dict] = {}
+    for pid in list_available_permission_presets():
+        data = load_permission_preset(pid)
+        if data is not None:
+            result[pid] = data
+    return result
