@@ -302,37 +302,58 @@ def restart(project_dir: Path, agent_id: str) -> dict[str, Any]:
 # ── Volume Lifecycle ──────────────────────────────────────────────────
 
 
-def volume_wipe(project_dir: Path, agent_id: str) -> dict[str, Any]:
-    """Delete an agent's Docker data volume. All memory is lost."""
+def _resolve_compose_volumes(
+    project_dir: Path, agent_id: str,
+) -> dict[str, Any] | None:
+    """Read compose file and extract container name + data volume names.
+
+    Returns None on error (caller should return the value as-is).
+    On success returns dict with keys: container_name, volume_names.
+    """
     import yaml
     compose_file = _compose_file_path(project_dir)
     if not compose_file.exists():
-        return {"success": False, "message": "Compose file not found", "details": ""}
+        return None  # signal: compose file not found
     with open(compose_file) as f:
         compose = yaml.safe_load(f) or {}
     services = compose.get("services", {})
     svc = services.get(agent_id)
     if not svc:
-        return {"success": False, "message": f"Unknown agent: {agent_id}", "details": ""}
+        return None  # signal: unknown agent
     container_name = svc.get("container_name", f"hermes-fleet-{agent_id}")
-    volumes = svc.get("volumes", [])
+    volumes_def = svc.get("volumes", [])
     volume_names = []
-    for vol in volumes:
+    for vol in volumes_def:
         if isinstance(vol, str) and "_data" in vol:
-            vname = vol.split(":")[0]
-            volume_names.append(vname)
+            volume_names.append(vol.split(":")[0])
         elif isinstance(vol, dict):
             src = vol.get("source", "")
             if "_data" in src:
                 volume_names.append(src)
+    return {
+        "container_name": container_name,
+        "volume_names": volume_names,
+        "services": services,
+        "compose": compose,
+        "svc": svc,
+    }
+
+
+def volume_wipe(project_dir: Path, agent_id: str) -> dict[str, Any]:
+    """Delete an agent's Docker data volume. All memory is lost."""
+    resolved = _resolve_compose_volumes(project_dir, agent_id)
+    if resolved is None:
+        compose_file = _compose_file_path(project_dir)
+        if not compose_file.exists():
+            return {"success": False, "message": "Compose file not found", "details": ""}
+        return {"success": False, "message": f"Unknown agent: {agent_id}", "details": ""}
+    container_name = resolved["container_name"]
+    volume_names = resolved["volume_names"]
     if not volume_names:
         return {"success": False, "message": f"No data volumes found for {agent_id}", "details": ""}
     try:
-        # Stop container first
         subprocess.run(["docker", "stop", container_name], capture_output=True, text=True, timeout=30)
-        # Remove container
         subprocess.run(["docker", "rm", container_name], capture_output=True, text=True, timeout=30)
-        # Remove volumes
         for vname in volume_names:
             subprocess.run(["docker", "volume", "rm", vname], capture_output=True, text=True, timeout=30)
         return {
@@ -346,25 +367,17 @@ def volume_wipe(project_dir: Path, agent_id: str) -> dict[str, Any]:
 
 def volume_snapshot(project_dir: Path, agent_id: str) -> dict[str, Any]:
     """Create a snapshot of an agent's data volume."""
-    import yaml
     from datetime import datetime
-    compose_file = _compose_file_path(project_dir)
-    if not compose_file.exists():
-        return {"success": False, "message": "Compose file not found", "details": ""}
-    with open(compose_file) as f:
-        compose = yaml.safe_load(f) or {}
-    services = compose.get("services", {})
-    svc = services.get(agent_id)
-    if not svc:
+    resolved = _resolve_compose_volumes(project_dir, agent_id)
+    if resolved is None:
+        compose_file = _compose_file_path(project_dir)
+        if not compose_file.exists():
+            return {"success": False, "message": "Compose file not found", "details": ""}
         return {"success": False, "message": f"Unknown agent: {agent_id}", "details": ""}
-    volumes_def = svc.get("volumes", [])
-    volume_name = None
-    for vol in volumes_def:
-        if isinstance(vol, str) and "_data" in vol:
-            volume_name = vol.split(":")[0]
-            break
-    if not volume_name:
+    volume_names = resolved["volume_names"]
+    if not volume_names:
         return {"success": False, "message": f"No data volume for {agent_id}", "details": ""}
+    volume_name = volume_names[0]
     snapshots_dir = project_dir / ".fleet" / "snapshots"
     snapshots_dir.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -389,30 +402,21 @@ def volume_snapshot(project_dir: Path, agent_id: str) -> dict[str, Any]:
 
 def volume_restore(project_dir: Path, agent_id: str, snapshot_name: str) -> dict[str, Any]:
     """Restore an agent's data volume from a snapshot."""
-    import yaml
-    compose_file = _compose_file_path(project_dir)
-    if not compose_file.exists():
-        return {"success": False, "message": "Compose file not found", "details": ""}
-    with open(compose_file) as f:
-        compose = yaml.safe_load(f) or {}
-    services = compose.get("services", {})
-    svc = services.get(agent_id)
-    if not svc:
+    resolved = _resolve_compose_volumes(project_dir, agent_id)
+    if resolved is None:
+        compose_file = _compose_file_path(project_dir)
+        if not compose_file.exists():
+            return {"success": False, "message": "Compose file not found", "details": ""}
         return {"success": False, "message": f"Unknown agent: {agent_id}", "details": ""}
-    volumes_def = svc.get("volumes", [])
-    volume_name = None
-    for vol in volumes_def:
-        if isinstance(vol, str) and "_data" in vol:
-            volume_name = vol.split(":")[0]
-            break
-    if not volume_name:
+    volume_names = resolved["volume_names"]
+    if not volume_names:
         return {"success": False, "message": f"No data volume for {agent_id}", "details": ""}
+    volume_name = volume_names[0]
     snapshots_dir = project_dir / ".fleet" / "snapshots"
     snapshot_file = snapshots_dir / snapshot_name
     if not snapshot_file.exists():
         return {"success": False, "message": f"Snapshot not found: {snapshot_file}", "details": ""}
     try:
-        # Wipe current volume content and restore
         subprocess.run(
             ["docker", "run", "--rm", "-v", f"{volume_name}:/data", "busybox", "sh", "-c",
              "rm -rf /data/* /data/.* 2>/dev/null; exit 0"],

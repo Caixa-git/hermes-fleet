@@ -60,7 +60,7 @@ def init(
         console.print("[yellow]⚠ fleet.yaml already exists. Skipping.[/yellow]")
     else:
         default_config = {
-            "fleet_version": "0.2.0",
+            "fleet_version": "0.4.0",
             "name": project_dir.name,
             "team": "general-dev",
             "output_dir": ".fleet/generated",
@@ -264,6 +264,9 @@ def generate(
         team_def=team_def,
         force=force,
         resources=fleet_config.get("resources"),
+        network_policy=fleet_config.get("network_policy"),
+        token_budget=fleet_config.get("token_budget"),
+        agent_states=fleet_config.get("agent_states"),
     )
 
     console.print(f"\n[green]✓ Generated fleet configuration in: {output_dir}[/green]")

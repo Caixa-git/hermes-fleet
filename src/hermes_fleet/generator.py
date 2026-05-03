@@ -12,12 +12,16 @@ from hermes_fleet.kanban import generate_kanban_templates
 from hermes_fleet.teams import load_role
 
 
+
 def generate_fleet(
     project_dir: Path,
     team_id: str,
     team_def: dict,
     force: bool = False,
     resources: dict[str, dict[str, str]] | None = None,
+    network_policy: dict | None = None,
+    token_budget: dict | None = None,
+    agent_states: dict[str, dict[str, str]] | None = None,
 ) -> Path:
     """
     Generate all fleet configuration files.
@@ -28,6 +32,9 @@ def generate_fleet(
         team_def: Team definition dict.
         force: Overwrite existing files.
         resources: Optional resource overrides (from fleet.yaml).
+        network_policy: Optional network policy (from fleet.yaml).
+        token_budget: Optional token budget (from fleet.yaml).
+        agent_states: Optional per-agent state (from fleet.yaml).
 
     Returns:
         Path to the generated output directory.
@@ -63,7 +70,10 @@ def generate_fleet(
         _write_if_not_exists(policy_path, policy_content, force)
 
     # --- Generate Docker Compose ---
-    compose = generate_docker_compose(team_id, agents, resources=resources)
+    compose = generate_docker_compose(team_id, agents, resources=resources,
+                                           network_policy=network_policy,
+                                           token_budget=token_budget,
+                                           agent_states=agent_states)
     compose_path = output_dir / "docker-compose.generated.yaml"
     compose_content = yaml.dump(compose, default_flow_style=False)
     _write_if_not_exists(compose_path, compose_content, force)

@@ -16,11 +16,24 @@ def _sanitize_name(name: str) -> str:
     return name.replace("_", "-").replace(".", "-").lower()
 
 
+def _get_agent_state(
+    agent_id: str,
+    agent_states: dict[str, dict[str, str]] | None = None,
+) -> str:
+    """Resolve the agent's lifecycle state. Defaults to 'active'."""
+    if agent_states and agent_id in agent_states:
+        entry = agent_states[agent_id]
+        if isinstance(entry, dict):
+            return entry.get("state", "active")
+    return "active"
+
+
 def generate_docker_compose(
     team_id: str, agents: list[str],
     resources: dict[str, dict[str, str]] | None = None,
     network_policy: dict | None = None,
     token_budget: dict | None = None,
+    agent_states: dict[str, dict[str, str]] | None = None,
 ) -> dict:
     """
     Generate a complete Docker Compose dict for a team.
@@ -33,6 +46,8 @@ def generate_docker_compose(
             Format: {"default": "isolated", "per_agent": {agent_id: "proxy"}}.
         token_budget: Optional token budget from fleet.yaml.
             Format: {"default": 50, "per_agent": {agent_id: 100}}.
+        agent_states: Optional per-agent state from fleet.yaml.
+            Format: {"agent_id": {"state": "idle"}}.
 
     Returns a dict ready for YAML serialization.
     """
@@ -91,6 +106,7 @@ def generate_docker_compose(
                 f"HERMES_PROFILE={agent_id}",
                 f"HERMES_MAX_ITERATIONS={budget}",
                 f"HERMES_NETWORK_MODE={net_mode}",
+                f"HERMES_AGENT_STATE={_get_agent_state(agent_id, agent_states)}",
             ],
             "networks": net_list,
             "deploy": {
