@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import enum
 from typing import Any
 
 from pydantic import BaseModel, field_validator
@@ -173,6 +174,44 @@ def role_from_dict(data: dict[str, Any]) -> RoleContract:
 # ── Fleet Config ───────────────────────────────────────────────────────────────
 
 
+class NetworkConfig(BaseModel):
+    """Contract for network policy configuration in fleet.yaml.
+
+    Defines the network isolation mode per agent and
+    temporary access request infrastructure.
+    """
+
+    mode: str = "isolated"  # isolated | control-plane | proxy | extern
+    default: str = "isolated"
+    per_agent: dict[str, str] = {}
+
+    @field_validator("mode")
+    @classmethod
+    def mode_valid(cls, v: str) -> str:
+        allowed = {"isolated", "control-plane", "proxy", "extern"}
+        if v not in allowed:
+            raise ValueError(f"Invalid network mode: {v}. Must be one of: {', '.join(sorted(allowed))}")
+        return v
+
+
+class TokenBudget(BaseModel):
+    """Token budget per session for each agent."""
+
+    default: int = 50
+    per_agent: dict[str, int] = {}
+
+
+class AgentState(str, enum.Enum):
+    """Lifecycle state of an agent in the fleet."""
+
+    CREATED = "created"
+    ACTIVE = "active"
+    IDLE = "idle"
+    COMPLETED = "completed"
+    ARCHIVED = "archived"
+
+
+
 class FleetConfigContract(BaseModel):
     """Contract for fleet.yaml project configuration."""
 
@@ -181,6 +220,9 @@ class FleetConfigContract(BaseModel):
     team: str
     output_dir: str = ".fleet/generated"
     resources: dict[str, dict[str, str]] = {}
+    network_policy: NetworkConfig = NetworkConfig()
+    token_budget: TokenBudget = TokenBudget()
+    agent_states: dict[str, AgentState] = {}
 
     @field_validator("fleet_version")
     @classmethod

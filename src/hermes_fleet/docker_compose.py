@@ -2,6 +2,12 @@
 Docker Compose service configuration generation.
 """
 
+from hermes_fleet.network import (
+    resolve_network_mode,
+    select_networks,
+    should_publish_ports,
+    get_token_budget,
+)
 from hermes_fleet.policy import compose_policy
 
 
@@ -10,20 +16,11 @@ def _sanitize_name(name: str) -> str:
     return name.replace("_", "-").replace(".", "-").lower()
 
 
-def _select_network(policy: dict) -> list[str]:
-    """Select Docker Compose networks based on policy."""
-    network_mode = policy.get("network", {}).get("mode", "none")
-    if network_mode in ("control_plane_only", "package_registry"):
-        return ["fleet-control-plane"]
-    elif network_mode == "web_readonly":
-        return ["fleet-web"]
-    else:
-        return ["fleet-no-net"]
-
-
 def generate_docker_compose(
     team_id: str, agents: list[str],
     resources: dict[str, dict[str, str]] | None = None,
+    network_policy: dict | None = None,
+    token_budget: dict | None = None,
 ) -> dict:
     """
     Generate a complete Docker Compose dict for a team.
@@ -32,8 +29,10 @@ def generate_docker_compose(
         team_id: Team preset ID.
         agents: List of agent IDs.
         resources: Optional resource overrides from fleet.yaml.
-            Keys: agent_id or 'default_cpu'/'default_memory'.
-            Format: {"orchestrator": {"cpus": "1.0", "memory": "1G"}, "default_cpu": "0.5"}.
+        network_policy: Optional network policy from fleet.yaml.
+            Format: {"default": "isolated", "per_agent": {agent_id: "proxy"}}.
+        token_budget: Optional token budget from fleet.yaml.
+            Format: {"default": 50, "per_agent": {agent_id: 100}}.
 
     Returns a dict ready for YAML serialization.
     """
@@ -50,11 +49,19 @@ def generate_docker_compose(
         volume_name = f"{sanitized_id}_data"
         worktree_dir = agent_id.replace("-", "_")
 
+        # v0.4: Resolve network mode from fleet.yaml policy or role default
+        net_mode = resolve_network_mode(agent_id, network_policy)
+        net_list = select_networks(net_mode)
+        publish_port = should_publish_ports(net_mode, agent_id)
+
+        # v0.4: Resolve token budget
+        budget = get_token_budget(agent_id, token_budget)
+
         # Determine read_only status
         workspace_access = policy.get("filesystem", {}).get("writable_paths", [])
         is_read_only = len(workspace_access) == 0
 
-        # Per-agent resource limits (v0.2+)
+        # Per-agent resource limits
         agent_resources = resources.get(agent_id, {}) or {}
         cpu_limit = agent_resources.get("cpus", default_cpu)
         mem_limit = agent_resources.get("memory", default_memory)
@@ -82,8 +89,10 @@ def generate_docker_compose(
             ],
             "environment": [
                 f"HERMES_PROFILE={agent_id}",
+                f"HERMES_MAX_ITERATIONS={budget}",
+                f"HERMES_NETWORK_MODE={net_mode}",
             ],
-            "networks": _select_network(policy),
+            "networks": net_list,
             "deploy": {
                 "resources": {
                     "limits": {
@@ -101,6 +110,10 @@ def generate_docker_compose(
             },
             "restart": "unless-stopped",
         }
+
+        # v0.4: Only orchestrator and extern-mode agents get published ports
+        if publish_port:
+            service["ports"] = ["127.0.0.1:8080:8080"]
 
         services[agent_id] = service
         volumes[volume_name] = {"driver": "local"}
