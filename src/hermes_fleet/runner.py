@@ -297,3 +297,139 @@ def restart(project_dir: Path, agent_id: str) -> dict[str, Any]:
         return {"success": False, "message": str(e), "details": ""}
     except subprocess.TimeoutExpired:
         return {"success": False, "message": "docker restart timed out", "details": ""}
+
+
+# ── Volume Lifecycle ──────────────────────────────────────────────────
+
+
+def volume_wipe(project_dir: Path, agent_id: str) -> dict[str, Any]:
+    """Delete an agent's Docker data volume. All memory is lost."""
+    import yaml
+    compose_file = _compose_file_path(project_dir)
+    if not compose_file.exists():
+        return {"success": False, "message": "Compose file not found", "details": ""}
+    with open(compose_file) as f:
+        compose = yaml.safe_load(f) or {}
+    services = compose.get("services", {})
+    svc = services.get(agent_id)
+    if not svc:
+        return {"success": False, "message": f"Unknown agent: {agent_id}", "details": ""}
+    container_name = svc.get("container_name", f"hermes-fleet-{agent_id}")
+    volumes = svc.get("volumes", [])
+    volume_names = []
+    for vol in volumes:
+        if isinstance(vol, str) and "_data" in vol:
+            vname = vol.split(":")[0]
+            volume_names.append(vname)
+        elif isinstance(vol, dict):
+            src = vol.get("source", "")
+            if "_data" in src:
+                volume_names.append(src)
+    if not volume_names:
+        return {"success": False, "message": f"No data volumes found for {agent_id}", "details": ""}
+    try:
+        # Stop container first
+        subprocess.run(["docker", "stop", container_name], capture_output=True, text=True, timeout=30)
+        # Remove container
+        subprocess.run(["docker", "rm", container_name], capture_output=True, text=True, timeout=30)
+        # Remove volumes
+        for vname in volume_names:
+            subprocess.run(["docker", "volume", "rm", vname], capture_output=True, text=True, timeout=30)
+        return {
+            "success": True,
+            "message": f"Volume for '{agent_id}' wiped",
+            "details": f"Removed: {', '.join(volume_names)}",
+        }
+    except subprocess.TimeoutExpired:
+        return {"success": False, "message": "Docker operation timed out", "details": ""}
+
+
+def volume_snapshot(project_dir: Path, agent_id: str) -> dict[str, Any]:
+    """Create a snapshot of an agent's data volume."""
+    import yaml
+    from datetime import datetime
+    compose_file = _compose_file_path(project_dir)
+    if not compose_file.exists():
+        return {"success": False, "message": "Compose file not found", "details": ""}
+    with open(compose_file) as f:
+        compose = yaml.safe_load(f) or {}
+    services = compose.get("services", {})
+    svc = services.get(agent_id)
+    if not svc:
+        return {"success": False, "message": f"Unknown agent: {agent_id}", "details": ""}
+    volumes_def = svc.get("volumes", [])
+    volume_name = None
+    for vol in volumes_def:
+        if isinstance(vol, str) and "_data" in vol:
+            volume_name = vol.split(":")[0]
+            break
+    if not volume_name:
+        return {"success": False, "message": f"No data volume for {agent_id}", "details": ""}
+    snapshots_dir = project_dir / ".fleet" / "snapshots"
+    snapshots_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    snapshot_file = snapshots_dir / f"{agent_id}_{timestamp}.tar.gz"
+    try:
+        result = subprocess.run(
+            ["docker", "run", "--rm", "-v", f"{volume_name}:/data", "-v", f"{snapshots_dir}:/backup",
+             "busybox", "tar", "czf", f"/backup/{snapshot_file.name}", "-C", "/data", "."],
+            capture_output=True, text=True, timeout=120,
+        )
+        if result.returncode == 0:
+            return {
+                "success": True,
+                "message": f"Snapshot created for '{agent_id}'",
+                "details": str(snapshot_file),
+            }
+        else:
+            return {"success": False, "message": f"Snapshot failed: {result.stderr.strip()}", "details": ""}
+    except subprocess.TimeoutExpired:
+        return {"success": False, "message": "Snapshot timed out", "details": ""}
+
+
+def volume_restore(project_dir: Path, agent_id: str, snapshot_name: str) -> dict[str, Any]:
+    """Restore an agent's data volume from a snapshot."""
+    import yaml
+    compose_file = _compose_file_path(project_dir)
+    if not compose_file.exists():
+        return {"success": False, "message": "Compose file not found", "details": ""}
+    with open(compose_file) as f:
+        compose = yaml.safe_load(f) or {}
+    services = compose.get("services", {})
+    svc = services.get(agent_id)
+    if not svc:
+        return {"success": False, "message": f"Unknown agent: {agent_id}", "details": ""}
+    volumes_def = svc.get("volumes", [])
+    volume_name = None
+    for vol in volumes_def:
+        if isinstance(vol, str) and "_data" in vol:
+            volume_name = vol.split(":")[0]
+            break
+    if not volume_name:
+        return {"success": False, "message": f"No data volume for {agent_id}", "details": ""}
+    snapshots_dir = project_dir / ".fleet" / "snapshots"
+    snapshot_file = snapshots_dir / snapshot_name
+    if not snapshot_file.exists():
+        return {"success": False, "message": f"Snapshot not found: {snapshot_file}", "details": ""}
+    try:
+        # Wipe current volume content and restore
+        subprocess.run(
+            ["docker", "run", "--rm", "-v", f"{volume_name}:/data", "busybox", "sh", "-c",
+             "rm -rf /data/* /data/.* 2>/dev/null; exit 0"],
+            capture_output=True, text=True, timeout=30,
+        )
+        result = subprocess.run(
+            ["docker", "run", "--rm", "-v", f"{volume_name}:/data", "-v", f"{snapshots_dir}:/backup",
+             "busybox", "tar", "xzf", f"/backup/{snapshot_name}", "-C", "/data"],
+            capture_output=True, text=True, timeout=120,
+        )
+        if result.returncode == 0:
+            return {
+                "success": True,
+                "message": f"Volume restored for '{agent_id}' from {snapshot_name}",
+                "details": "",
+            }
+        else:
+            return {"success": False, "message": f"Restore failed: {result.stderr.strip()}", "details": ""}
+    except subprocess.TimeoutExpired:
+        return {"success": False, "message": "Restore timed out", "details": ""}

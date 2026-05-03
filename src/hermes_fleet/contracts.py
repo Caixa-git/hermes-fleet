@@ -298,6 +298,93 @@ def handoff_from_dict(data: dict[str, Any]) -> HandoffContract:
     )
 
 
+class HandoffValidationError(Exception):
+    """Raised when a handoff document fails runtime validation."""
+
+
+def validate_handoff_doc(
+    doc: dict[str, Any],
+    contract: HandoffContract,
+    from_agent: str,
+    to_agent: str,
+) -> dict[str, Any]:
+    """Validate a handoff document against its contract at runtime.
+
+    Args:
+        doc: The handoff document dict (from YAML/JSON).
+        contract: The HandoffContract to validate against.
+        from_agent: The sending agent ID.
+        to_agent: The receiving agent ID.
+
+    Returns:
+        Dict with keys: passed (bool), checks (list of dicts).
+        Each check: {"check": str, "status": "passed"|"failed", "message": str}.
+    """
+    checks: list[dict[str, str]] = []
+
+    # 1. from_roles check
+    if contract.from_roles:
+        if from_agent in contract.from_roles:
+            checks.append({"check": f"from_roles:{from_agent}", "status": "passed"})
+        else:
+            checks.append({
+                "check": f"from_roles:{from_agent}",
+                "status": "failed",
+                "message": f"Agent '{from_agent}' not in contract's from_roles: {contract.from_roles}",
+            })
+
+    # 2. allowed_next_roles check
+    if contract.allowed_next_roles:
+        if to_agent in contract.allowed_next_roles:
+            checks.append({"check": f"allowed_next_roles:{to_agent}", "status": "passed"})
+        else:
+            checks.append({
+                "check": f"allowed_next_roles:{to_agent}",
+                "status": "failed",
+                "message": f"Agent '{to_agent}' not in contract's allowed_next_roles: {contract.allowed_next_roles}",
+            })
+
+    # 3. required_fields check
+    for field in contract.required_fields:
+        if field in doc and doc[field] is not None and doc[field] != "":
+            checks.append({"check": f"required_field:{field}", "status": "passed"})
+        else:
+            checks.append({
+                "check": f"required_field:{field}",
+                "status": "failed",
+                "message": f"Required field '{field}' missing or empty in handoff document",
+            })
+
+    # 4. validation_rules check
+    for rule in contract.validation_rules:
+        val = doc.get(rule.field)
+        check_name = f"rule:{rule.field}"
+        issues = []
+
+        if rule.required and (val is None or val == ""):
+            issues.append(f"field '{rule.field}' is required")
+        if rule.min_length is not None and isinstance(val, str) and len(val) < rule.min_length:
+            issues.append(f"min length {rule.min_length}")
+        if rule.max_length is not None and isinstance(val, str) and len(val) > rule.max_length:
+            issues.append(f"max length {rule.max_length}")
+        if rule.enum is not None and val not in rule.enum:
+            issues.append(f"must be one of: {rule.enum}")
+        if rule.min_items is not None and isinstance(val, (list, dict)) and len(val) < rule.min_items:
+            issues.append(f"min items {rule.min_items}")
+        if rule.regex and isinstance(val, str):
+            import re
+            if not re.match(rule.regex, val):
+                issues.append(f"regex mismatch: {rule.regex}")
+
+        if issues:
+            checks.append({"check": check_name, "status": "failed", "message": "; ".join(issues)})
+        else:
+            checks.append({"check": check_name, "status": "passed"})
+
+    passed_all = all(c["status"] == "passed" for c in checks)
+    return {"passed": passed_all, "checks": checks}
+
+
 # ── Cross-Reference Validation ─────────────────────────────────────────────────
 
 

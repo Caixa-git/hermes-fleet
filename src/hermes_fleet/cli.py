@@ -986,6 +986,193 @@ def restart(
         raise typer.Exit(1)
 
 
+# ── Agent Lifecycle Subcommands ───────────────────────────────────────
+
+
+agent_app = typer.Typer(
+    name="agent",
+    help="Manage agent lifecycle states (idle/wake/archive).",
+    add_completion=False,
+)
+app.add_typer(agent_app, name="agent")
+
+
+def _update_agent_state(agent_id: str, new_state: str) -> bool:
+    """Update an agent's state in fleet.yaml."""
+    import yaml
+    fleet_yaml = Path.cwd() / ".fleet" / "fleet.yaml"
+    if not fleet_yaml.exists():
+        console.print("[red]✗ No fleet.yaml found in .fleet/[/red]")
+        raise typer.Exit(1)
+    with open(fleet_yaml) as f:
+        config = yaml.safe_load(f) or {}
+    if "agent_states" not in config:
+        config["agent_states"] = {}
+    config["agent_states"][agent_id] = {"state": new_state}
+    with open(fleet_yaml, "w") as f:
+        yaml.dump(config, f, default_flow_style=False)
+    return True
+
+
+@agent_app.command("idle")
+def agent_idle(
+    agent_id: str = typer.Argument(..., help="Agent ID to set idle"),
+):
+    """Set an agent to IDLE state. Agent stops accepting tasks."""
+    _update_agent_state(agent_id, "idle")
+    console.print(f"[green]✓ Agent '{agent_id}' set to IDLE[/green]")
+    console.print("  Container will keep running but won't accept new tasks.")
+
+
+@agent_app.command("wake")
+def agent_wake(
+    agent_id: str = typer.Argument(..., help="Agent ID to wake"),
+):
+    """Set an agent to ACTIVE state. Agent resumes accepting tasks."""
+    _update_agent_state(agent_id, "active")
+    console.print(f"[green]✓ Agent '{agent_id}' set to ACTIVE[/green]")
+
+
+@agent_app.command("archive")
+def agent_archive(
+    agent_id: str = typer.Argument(..., help="Agent ID to archive"),
+    wipe_volume: bool = typer.Option(
+        False, "--wipe-volume", help="Also wipe the agent's data volume"
+    ),
+):
+    """Set an agent to ARCHIVED state. Agent removed from fleet."""
+    import yaml
+    fleet_yaml = Path.cwd() / ".fleet" / "fleet.yaml"
+    if not fleet_yaml.exists():
+        console.print("[red]✗ No fleet.yaml[/red]")
+        raise typer.Exit(1)
+    with open(fleet_yaml) as f:
+        config = yaml.safe_load(f) or {}
+    if "agent_states" not in config:
+        config["agent_states"] = {}
+    config["agent_states"][agent_id] = {"state": "archived"}
+    with open(fleet_yaml, "w") as f:
+        yaml.dump(config, f, default_flow_style=False)
+    console.print(f"[green]✓ Agent '{agent_id}' archived.[/green]")
+    if wipe_volume:
+        from hermes_fleet.runner import volume_wipe
+        result = volume_wipe(Path.cwd(), agent_id)
+        if result["success"]:
+            console.print(f"[green]✓ Volume for '{agent_id}' wiped.[/green]")
+        else:
+            console.print(f"[yellow]⚠ Volume wipe: {result['message']}[/yellow]")
+
+
+# ── Volume Lifecycle Subcommands ──────────────────────────────────────
+
+
+@app.command()
+def volume(
+    action: str = typer.Argument(
+        ..., help="Action: wipe, snapshot, restore"
+    ),
+    agent: str = typer.Argument(
+        ..., help="Agent ID"
+    ),
+    snapshot_name: str = typer.Argument(
+        None, help="Snapshot name (required for restore)"
+    ),
+):
+    """Manage agent data volumes.
+
+    Actions:
+      wipe <agent>       Delete agent's data volume (all memory lost)
+      snapshot <agent>   Create a snapshot of agent memory
+      restore <agent> <snapshot>  Restore from a previous snapshot
+    """
+    from hermes_fleet.runner import volume_wipe, volume_snapshot, volume_restore
+
+    if action == "wipe":
+        result = volume_wipe(Path.cwd(), agent)
+    elif action == "snapshot":
+        result = volume_snapshot(Path.cwd(), agent)
+    elif action == "restore":
+        if not snapshot_name:
+            console.print("[red]✗ Snapshot name required for restore[/red]")
+            raise typer.Exit(1)
+        result = volume_restore(Path.cwd(), agent, snapshot_name)
+    else:
+        console.print(f"[red]✗ Unknown action: {action}. Use: wipe, snapshot, restore[/red]")
+        raise typer.Exit(1)
+
+    if result["success"]:
+        console.print(f"[green]✓ {result['message']}[/green]")
+        if result.get("details"):
+            console.print(result["details"])
+    else:
+        console.print(f"[red]✗ {result['message']}[/red]")
+        if result.get("details"):
+            console.print(f"[dim]{result['details']}[/dim]")
+        raise typer.Exit(1)
+
+
+# ── Handoff Runtime Validation ────────────────────────────────────────
+
+
+@app.command()
+def handoff(
+    from_agent: str = typer.Argument(..., help="Source agent ID"),
+    to_agent: str = typer.Argument(..., help="Target agent ID"),
+    handoff_file: str = typer.Argument(..., help="Path to handoff document (YAML/JSON)"),
+):
+    """Validate a handoff document against its contract at runtime."""
+    import json
+    import yaml
+    from hermes_fleet.contracts import handoff_from_dict, validate_handoff_doc
+    from hermes_fleet.teams import load_handoff
+
+    handoff_path = Path(handoff_file)
+    if not handoff_path.exists():
+        console.print(f"[red]✗ Handoff file not found: {handoff_file}[/red]")
+        raise typer.Exit(1)
+
+    with open(handoff_path) as f:
+        raw = handoff_path.suffix in (".json",)
+        doc = json.load(f) if raw else yaml.safe_load(f)
+
+    if not doc:
+        console.print("[red]✗ Empty handoff document[/red]")
+        raise typer.Exit(1)
+
+    handoff_id = doc.get("handoff_contract", "")
+    if not handoff_id:
+        console.print("[red]✗ No handoff_contract field in document[/red]")
+        raise typer.Exit(1)
+
+    contract_data = load_handoff(handoff_id)
+    if not contract_data:
+        console.print(f"[red]✗ Handoff contract '{handoff_id}' not found[/red]")
+        raise typer.Exit(1)
+
+    contract = handoff_from_dict(contract_data)
+    from hermes_fleet.contracts import HandoffValidationError
+    try:
+        result = validate_handoff_doc(doc, contract, from_agent, to_agent)
+        passed = sum(1 for r in result["checks"] if r["status"] == "passed")
+        failed = sum(1 for r in result["checks"] if r["status"] == "failed")
+        console.print(f"\\nHandoff validation results:")
+        console.print(f"  Contract: {handoff_id}")
+        console.print(f"  From: {from_agent} → To: {to_agent}")
+        console.print(f"  Passed: {passed}  Failed: {failed}")
+        for check in result["checks"]:
+            if check["status"] == "passed":
+                console.print(f"  [green]✓ {check['check']}[/green]")
+            else:
+                console.print(f"  [red]✗ {check['check']}: {check.get('message', '')}[/red]")
+        if failed > 0:
+            console.print("[red]\\nHandoff validation FAILED.[/red]")
+            raise typer.Exit(1)
+        console.print("[green]\\nHandoff validation PASSED.[/green]")
+    except Exception as e:
+        console.print(f"[red]✗ Validation error: {e}[/red]")
+        raise typer.Exit(1)
+
+
 def main():
     """Entry point for the CLI."""
     app()
