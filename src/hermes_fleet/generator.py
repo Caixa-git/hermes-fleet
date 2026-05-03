@@ -2,7 +2,6 @@
 Generator — assemble and render all agent configurations.
 """
 
-import os
 from pathlib import Path
 from typing import List
 

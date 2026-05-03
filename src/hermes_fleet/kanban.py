@@ -4,8 +4,6 @@ Kanban handoff contract template generation.
 
 from typing import Dict, List
 
-from hermes_fleet.policy import compose_policy
-
 
 def generate_kanban_templates(policy: dict = None) -> Dict[str, str]:
     """
