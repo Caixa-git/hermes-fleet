@@ -16,6 +16,41 @@ _KEYWORD_TEAMS: list[tuple[list[str], str]] = [
         ],
         "saas-medium",
     ),
+    # iOS / iPhone app
+    (
+        ["ios", "iphone", "apple", "swift", "mobile app", "native app", "app store"],
+        "iphone-app",
+    ),
+    # AI / ML app
+    (
+        ["ai", "machine learning", "ml", "llm", "rag", "chatbot", "gpt",
+         "neural", "artificial intelligence", "deep learning", "nlp"],
+        "ai-app",
+    ),
+    # Security audit
+    (
+        ["security audit", "penetration test", "vulnerability", "compliance",
+         "security review", "threat model", "risk assessment"],
+        "security-audit",
+    ),
+    # Research / writing
+    (
+        ["research", "whitepaper", "literature review", "study", "report",
+         "technical writing", "academic", "publication"],
+        "research-writing",
+    ),
+    # Content / marketing
+    (
+        ["content", "blog", "marketing", "social media", "copywriting",
+         "seo", "brand", "content strategy"],
+        "content-creator",
+    ),
+    # DevOps / deployment
+    (
+        ["devops", "ci/cd", "deployment", "infrastructure", "terraform",
+         "kubernetes", "docker compose", "pipeline", "production ops"],
+        "devops-deployment",
+    ),
 ]
 
 

@@ -1,0 +1,13 @@
+id: iphone-app
+name: iPhone Application Team
+description: >
+  A focused team for building a native iOS application with a backend.
+  Includes product management, UX design, frontend (iOS), backend, QA, and documentation.
+agents:
+  - orchestrator
+  - product-manager
+  - ux-designer
+  - frontend-developer
+  - backend-developer
+  - qa-tester
+  - technical-writer

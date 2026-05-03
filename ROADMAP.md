@@ -20,7 +20,7 @@
 - [x] Docker Compose generation (per-agent services with security defaults)
 - [x] Kanban handoff template generation
 - [x] Safe-defaults validator (22 checks across 16 check functions)
-- [x] Automated test suite (175 tests)
+- [x] Automated test suite (160 tests)
 
 ### Quality Bar
 - All tests pass
@@ -59,9 +59,9 @@
 - Never auto-apply latest `main`
 
 ### Team Expansion
-- Additional team presets: `iphone-app`, `ai-app`, `security-audit`, `research-writing`, `content-creator`, `devops-deployment`
-- New role adoption gate: each new role must pass all three pillar checks (Role ✓, Boundary ✓, Completion ✓)
-- `hermes-fleet customize` — interactive agent configuration
+- [x] Additional team presets: `iphone-app`, `ai-app`, `security-audit`, `research-writing`, `content-creator`, `devops-deployment` (8 total)
+- [ ] New role adoption gate: each new role must pass all three pillar checks (Role ✓, Boundary ✓, Completion ✓)
+- [ ] `hermes-fleet customize` — interactive agent configuration
 - Custom role definitions from local YAML files
 - Permission preset customization
 - Expanded safe-defaults checks
@@ -71,7 +71,7 @@
 - **Team Proposal schema**: onboarders (human or AI) output constrained to a fixed schema — `recommended_team_id`, `rationale`, optional `customizations` only
 - **Team Contract**: formal contract type with `required_capabilities`, `role_inventory`, `permission_preset_mapping`, `handoff_contract_inventory`
 - **Role Contract**: formal contract type with `source` provenance, `role_fidelity_mode`, `allowed/forbidden_task_types`, `permission_preset`, `handoff_contract`, `identity_drift_guards`
-- **Handoff Contract**: formal contract type with `from_roles`, `allowed_next_roles`, `required_fields`, `validation_rules`, `completion_gate`
+- **Handoff Contract**: formal contract type with `from_roles`, `allowed_next_roles`, `required_fields`, `validation_rules`, `completion_gate` — implemented with 4 YAML presets
 - **foundation.lock.yaml**: pins four design foundation sources (Agent-Oriented Planning, LLM MAS Survey, NIST RBAC, Contract Net Protocol). See `DESIGN_FOUNDATIONS.md`.
 - **Foundation-bound planner**: the Planner is constrained by the locked foundations. It cannot invent new principles or role taxonomies beyond the locks.
 - **Two lock layers**: `foundation.lock.yaml` (rarely updated, strict process) vs `agency.lock.yaml` (more frequent, lighter process)

@@ -125,7 +125,13 @@ Returns:
 
 **Keyword heuristics** (v0.1 only):
 
-- **"saas", "subscription", "dashboard", "auth", "billing", "payment", "web app", "platform"** → saas-medium
+- **"saas", "subscription", "dashboard", "auth", "billing", "payment", "web app", "platform", "api", "crm"** → saas-medium
+- **"ios", "iphone", "apple", "swift", "mobile app", "native app"** → iphone-app
+- **"ai", "machine learning", "llm", "rag", "chatbot", "gpt", "neural"** → ai-app
+- **"security audit", "penetration test", "vulnerability", "compliance"** → security-audit
+- **"research", "whitepaper", "literature review", "study", "report"** → research-writing
+- **"content", "blog", "marketing", "social media", "seo"** → content-creator
+- **"devops", "ci/cd", "deployment", "infrastructure", "terraform", "kubernetes"** → devops-deployment
 - **Everything else** → general-dev
 
 ### 3.3 `hermes-fleet generate`

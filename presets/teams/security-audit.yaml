@@ -1,0 +1,10 @@
+id: security-audit
+name: Security Audit Team
+description: >
+  A specialized team for security audits, vulnerability assessment,
+  and code review. Read-only access across all repos.
+agents:
+  - orchestrator
+  - security-reviewer
+  - reviewer
+  - technical-writer

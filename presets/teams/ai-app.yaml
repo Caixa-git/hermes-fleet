@@ -1,0 +1,13 @@
+id: ai-app
+name: AI Application Team
+description: >
+  A team for building AI-powered applications with backend services,
+  data infrastructure, and security review.
+agents:
+  - orchestrator
+  - product-manager
+  - fullstack-developer
+  - backend-developer
+  - database-architect
+  - security-reviewer
+  - qa-tester

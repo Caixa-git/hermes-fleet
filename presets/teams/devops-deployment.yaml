@@ -1,0 +1,12 @@
+id: devops-deployment
+name: DevOps and Deployment Team
+description: >
+  A team for infrastructure, deployment pipelines, CI/CD, and
+  production operations. Security review required for all changes.
+agents:
+  - orchestrator
+  - deployer
+  - security-reviewer
+  - backend-developer
+  - qa-tester
+  - technical-writer

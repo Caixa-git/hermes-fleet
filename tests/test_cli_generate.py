@@ -186,7 +186,7 @@ class TestValidateCommand:
         result = self.runner.invoke(app, ["validate"], catch_exceptions=False)
 
         assert result.exit_code == 0
-        assert "2 teams" in result.stdout
+        assert "8 teams" in result.stdout
         assert "14 roles" in result.stdout
         assert "4 handoffs" in result.stdout
 

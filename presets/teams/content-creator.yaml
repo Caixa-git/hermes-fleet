@@ -1,0 +1,11 @@
+id: content-creator
+name: Content Creator Team
+description: >
+  A team for content strategy, growth marketing, technical writing,
+  and UX design. Focused on external-facing content and documentation.
+agents:
+  - orchestrator
+  - growth-marketer
+  - technical-writer
+  - ux-designer
+  - product-manager

@@ -1,0 +1,11 @@
+id: research-writing
+name: Research and Writing Team
+description: >
+  A team focused on research, technical writing, documentation,
+  and content design. No implementation work.
+agents:
+  - orchestrator
+  - product-manager
+  - technical-writer
+  - ux-designer
+  - reviewer
