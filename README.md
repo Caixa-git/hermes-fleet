@@ -213,3 +213,12 @@ and standards-based sources that underpin the framework's design principles.
 ## License
 
 MIT
+
+---
+
+## About the Author
+
+Hi, I'm **Caixa-git** — a Korean developer building secure multi-agent systems.
+I'm currently open to new opportunities.
+
+If you'd like to reach out: **wjsfund@gmail.com**
