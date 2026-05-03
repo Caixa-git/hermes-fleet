@@ -136,3 +136,98 @@ class TestGenerateCrossReference:
                 bad.append(f"{role_id} -> {preset}")
 
         assert not bad, f"Roles with unknown permission_presets: {bad}"
+
+
+class TestValidateCommand:
+    """Tests for the validate command."""
+
+    runner = CliRunner()
+
+    def test_validate_passes_with_real_presets(self, monkeypatch: pytest.MonkeyPatch):
+        """Validate command must pass against the real presets directory."""
+        real_presets = Path(__file__).resolve().parent.parent / "presets"
+
+        def mock_get_presets_dir():
+            return real_presets
+
+        monkeypatch.setattr("hermes_fleet.teams._get_presets_dir", mock_get_presets_dir)
+
+        result = self.runner.invoke(app, ["validate"], catch_exceptions=False)
+
+        assert result.exit_code == 0
+        assert "all contract checks passed" in result.stdout.lower()
+
+    def test_validate_verbose_shows_passing(self, monkeypatch: pytest.MonkeyPatch):
+        """Verbose mode must show individual passing checks."""
+        real_presets = Path(__file__).resolve().parent.parent / "presets"
+
+        def mock_get_presets_dir():
+            return real_presets
+
+        monkeypatch.setattr("hermes_fleet.teams._get_presets_dir", mock_get_presets_dir)
+
+        result = self.runner.invoke(app, ["validate", "-v"], catch_exceptions=False)
+
+        assert result.exit_code == 0
+        # Verbose shows ✓ prefix for passing checks
+        assert "team_role_references" in result.stdout
+        assert "role_preset_references" in result.stdout
+        assert "no_duplicate_ids" in result.stdout
+
+    def test_validate_reports_loaded_counts(self, monkeypatch: pytest.MonkeyPatch):
+        """Validate must show how many teams and roles were loaded."""
+        real_presets = Path(__file__).resolve().parent.parent / "presets"
+
+        def mock_get_presets_dir():
+            return real_presets
+
+        monkeypatch.setattr("hermes_fleet.teams._get_presets_dir", mock_get_presets_dir)
+
+        result = self.runner.invoke(app, ["validate"], catch_exceptions=False)
+
+        assert result.exit_code == 0
+        assert "2 teams" in result.stdout
+        assert "14 roles" in result.stdout
+
+    def test_validate_fails_on_bad_preset_ref(self, monkeypatch: pytest.MonkeyPatch):
+        """Validate must detect a role with an unknown permission_preset."""
+        import tempfile
+
+        # Create a temp presets dir with a broken role
+        tmp_presets = Path(tempfile.mkdtemp())
+        teams_dir = tmp_presets / "teams"
+        roles_dir = tmp_presets / "roles"
+        perms_dir = tmp_presets / "permissions"
+        teams_dir.mkdir(parents=True)
+        roles_dir.mkdir(parents=True)
+        perms_dir.mkdir(parents=True)
+
+        # One valid preset
+        with open(perms_dir / "valid_preset.yaml", "w") as f:
+            f.write("id: valid_preset\n")
+
+        # One team with one agent
+        with open(teams_dir / "test-team.yaml", "w") as f:
+            f.write("id: test-team\nname: Test\n")
+            f.write("description: A team\nagents:\n  - test-role\n")
+
+        # One role with a bad permission_preset
+        with open(roles_dir / "test-role.yaml", "w") as f:
+            f.write("id: test-role\nname: Test Role\n")
+            f.write("description: A role\nmission: Test\nnon_goals: None\n")
+            f.write("permission_preset: nonexistent_preset\n")
+            f.write("allowed_tasks:\n  - test\n")
+            f.write("handoff:\n  required_outputs:\n    - report\n")
+            f.write("completion_gates:\n  required:\n    - done\n")
+
+        def mock_get_presets_dir():
+            return tmp_presets
+
+        monkeypatch.setattr("hermes_fleet.teams._get_presets_dir", mock_get_presets_dir)
+
+        result = self.runner.invoke(app, ["validate"], catch_exceptions=False)
+
+        assert result.exit_code != 0
+        assert "failed" in result.stdout.lower()
+        assert "test-role" in result.stdout
+        assert "nonexistent_preset" in result.stdout

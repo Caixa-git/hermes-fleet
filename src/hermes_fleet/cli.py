@@ -239,6 +239,68 @@ def generate(
     )
 
 
+@app.command()
+def validate(
+    verbose: bool = typer.Option(
+        False, "--verbose", "-v", help="Show all checks including passing"
+    ),
+):
+    """Validate all preset contracts and cross-references."""
+    from hermes_fleet.contracts import (
+        team_from_dict,
+        role_from_dict,
+        validate_contract_cross_references,
+    )
+    from hermes_fleet.teams import (
+        _get_presets_dir,
+        list_available_teams,
+        list_available_roles,
+        load_team,
+        load_role,
+    )
+
+    presets_dir = _get_presets_dir()
+    known_presets = [p.stem for p in (presets_dir / "permissions").glob("*.yaml")]
+
+    # Load all teams
+    teams = []
+    for team_id in list_available_teams():
+        data = load_team(team_id)
+        if data is not None:
+            teams.append(team_from_dict(data))
+
+    # Load all roles
+    roles = []
+    for role_id in list_available_roles():
+        data = load_role(role_id)
+        if data is not None:
+            roles.append(role_from_dict(data))
+
+    # Run cross-reference validation
+    results = validate_contract_cross_references(
+        teams, roles, known_presets=known_presets
+    )
+
+    passed = sum(1 for r in results if r.status == "passed")
+    failed = sum(1 for r in results if r.status == "failed")
+
+    console.print("\nPreset contract validation results:")
+    console.print(f"  Contracts loaded: {len(teams)} teams, {len(roles)} roles")
+    console.print(f"  Passed: {passed}")
+    console.print(f"  Failed: {failed}")
+
+    for r in results:
+        if r.status == "failed":
+            console.print(f"  [red]✗ {r.check}: {r.message}[/red]")
+        elif verbose and r.status == "passed":
+            console.print(f"  [green]✓ {r.check}[/green]")
+
+    if failed > 0:
+        console.print("\n[red]Contract validation FAILED.[/red]")
+        raise typer.Exit(1)
+    console.print("\n[green]All contract checks PASSED.[/green]")
+
+
 test_app = typer.Typer(
     name="test",
     help="Run validation checks against generated configurations.",
