@@ -321,14 +321,17 @@ def _resolve_compose_volumes(
     if not svc:
         return None  # signal: unknown agent
     container_name = svc.get("container_name", f"hermes-fleet-{agent_id}")
+    defined_volumes = set(compose.get("volumes", {}).keys())
     volumes_def = svc.get("volumes", [])
     volume_names = []
     for vol in volumes_def:
-        if isinstance(vol, str) and "_data" in vol:
-            volume_names.append(vol.split(":")[0])
+        if isinstance(vol, str):
+            vname = vol.split(":")[0]
+            if vname in defined_volumes:
+                volume_names.append(vname)
         elif isinstance(vol, dict):
             src = vol.get("source", "")
-            if "_data" in src:
+            if src in defined_volumes:
                 volume_names.append(src)
     return {
         "container_name": container_name,

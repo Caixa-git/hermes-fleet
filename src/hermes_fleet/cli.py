@@ -68,6 +68,15 @@ def init(
                 "default_cpu": "0.5",
                 "default_memory": "512M",
             },
+            "network_policy": {
+                "default": "isolated",
+                "per_agent": {},
+            },
+            "token_budget": {
+                "default": 50,
+                "per_agent": {},
+            },
+            "agent_states": {},
         }
 
         with open(fleet_yaml_path, "w") as f:
@@ -259,6 +268,7 @@ def generate(
         network_policy=fleet_config.get("network_policy"),
         token_budget=fleet_config.get("token_budget"),
         agent_states=fleet_config.get("agent_states"),
+        image=fleet_config.get("image", "nousresearch/hermes-agent:latest"),
     )
 
     console.print(f"\n[green]✓ Generated fleet configuration in: {output_dir}[/green]")
@@ -268,7 +278,7 @@ def generate(
         f"  {output_dir}/agents/<agent-id>/SOUL.md\n"
         f"  {output_dir}/agents/<agent-id>/policy.yaml\n"
         f"  {output_dir}/kanban/\n"
-        "Next: hermes-fleet test safe-defaults or hermes-fleet validate"
+        "Next: hermes-fleet validate"
     )
 
 
@@ -383,6 +393,22 @@ def validate(
         console.print("\n[red]Contract validation FAILED.[/red]")
         raise typer.Exit(1)
     console.print("\n[green]All contract checks PASSED.[/green]")
+
+    # --- Safe-defaults: run if generated output exists ---
+    generated_dir = Path.cwd() / ".fleet" / "generated"
+    if generated_dir.exists():
+        from hermes_fleet.safe_defaults import run_safe_defaults_check
+        safe_results = run_safe_defaults_check(generated_dir, verbose=verbose)
+        safe_passed = sum(1 for r in safe_results if r["status"] == "passed")
+        safe_failed = sum(1 for r in safe_results if r["status"] == "failed")
+        console.print(f"\nSafe-defaults checks: {safe_passed} passed, {safe_failed} failed")
+        for r in safe_results:
+            if r["status"] == "failed":
+                console.print(f"  [red]✗ {r['check']}: {r['message']}[/red]")
+            elif verbose and r["status"] == "passed":
+                console.print(f"  [green]✓ {r['check']}[/green]")
+        if safe_failed > 0:
+            console.print("\n[yellow]⚠ Some safe-defaults checks failed. Review above.[/yellow]")
 
 
 # ── Agency Subcommands ─────────────────────────────────────────────

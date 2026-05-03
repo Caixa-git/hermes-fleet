@@ -22,6 +22,7 @@ def generate_fleet(
     network_policy: dict | None = None,
     token_budget: dict | None = None,
     agent_states: dict[str, dict[str, str]] | None = None,
+    image: str = "nousresearch/hermes-agent:latest",
 ) -> Path:
     """
     Generate all fleet configuration files.
@@ -35,6 +36,7 @@ def generate_fleet(
         network_policy: Optional network policy (from fleet.yaml).
         token_budget: Optional token budget (from fleet.yaml).
         agent_states: Optional per-agent state (from fleet.yaml).
+        image: Docker image for agents (default: nousresearch/hermes-agent:latest).
 
     Returns:
         Path to the generated output directory.
@@ -73,7 +75,8 @@ def generate_fleet(
     compose = generate_docker_compose(team_id, agents, resources=resources,
                                            network_policy=network_policy,
                                            token_budget=token_budget,
-                                           agent_states=agent_states)
+                                           agent_states=agent_states,
+                                           image=image)
     compose_path = output_dir / "docker-compose.generated.yaml"
     compose_content = yaml.dump(compose, default_flow_style=False)
     _write_if_not_exists(compose_path, compose_content, force)

@@ -34,6 +34,7 @@ def generate_docker_compose(
     network_policy: dict | None = None,
     token_budget: dict | None = None,
     agent_states: dict[str, dict[str, str]] | None = None,
+    image: str = "nousresearch/hermes-agent:latest",
 ) -> dict:
     """
     Generate a complete Docker Compose dict for a team.
@@ -48,6 +49,7 @@ def generate_docker_compose(
             Format: {"default": 50, "per_agent": {agent_id: 100}}.
         agent_states: Optional per-agent state from fleet.yaml.
             Format: {"agent_id": {"state": "idle"}}.
+        image: Docker image for all agents (default: nousresearch/hermes-agent:latest).
 
     Returns a dict ready for YAML serialization.
     """
@@ -82,7 +84,7 @@ def generate_docker_compose(
         mem_limit = agent_resources.get("memory", default_memory)
 
         service = {
-            "image": "nousresearch/hermes-agent:latest",
+            "image": image,
             "container_name": f"hermes-fleet-{sanitized_id}-{team_id}",
             "cap_drop": ["ALL"],
             "cap_add": ["DAC_OVERRIDE", "CHOWN", "FOWNER"],
