@@ -139,7 +139,22 @@
 
 ---
 
-## v0.5 — Policy Enforcement, Runtime Handoff, and Recovery
+## v0.5 — Orchestrator Agent Integration
+
+**Goal**: The orchestrator agent can manage the fleet autonomously — assign tasks, detect stalls, request status, and improve agent performance over time. The self-improving loop is the core value: orchestrator makes the fleet smarter, not just louder.
+**Strengthens**: Completion (task orchestration, self-improvement loop, agent lifecycle management)
+
+- **Fleet event bus** for agent-to-agent communication
+- **Orchestrator SOUL.md** with fleet management capabilities: create, assign, handoff tasks
+- **Orchestrator can detect stalled agents** — agents exceeding budget or producing no output
+- **Orchestrator can request fleet status** — `hermes-fleet status` integration
+- **Orchestrator can improve agents** — rewrite agent SOUL.md, skills, and config based on observed performance (Hermes Alpha-style meta-agent pattern)
+- **Integration with Hermes Agent delegation system** (`delegate_task` for subagent spawning)
+- **Terminal-based orchestrator dashboard** — real-time view of agent states, tasks, and health
+
+---
+
+## v0.6 — Policy Enforcement, Runtime Handoff, and Recovery
 
 **Goal**: Runtime policy enforcement at the container boundary. Role-specific handoff contracts validated at runtime. Self-healing from violations.
 **Strengthens**: Boundary (policy enforcer, runtime enforcement), Completion (runtime handoff validation, recovery)
@@ -167,12 +182,10 @@
 
 ---
 
-## v0.6 — Kanban Runtime and Fleet Mode
+## v0.7 — Kanban Runtime and Fleet Mode
 
-**Goal**: Built-in Kanban board for task handoff between agents. First
-version of Repo Fleet Mode — ingest an existing repo, create a fleeted
-workspace, and run a PR-based team workflow.
-**Strengthens**: Completion (kanban runtime, task handoff validation)
+**Goal**: Built-in Kanban board for task tracking and handoff visualization. Repo Fleet Mode — ingest an existing repo, create a fleeted workspace, and run a PR-based team workflow.
+**Strengthens**: Completion (kanban visualization, task tracking), Integration (repo ingestion, GitHub workflow)
 
 ### Kanban Runtime
 - `hermes-fleet task create` — create a task
@@ -181,7 +194,7 @@ workspace, and run a PR-based team workflow.
 - `hermes-fleet task complete <id>` — complete task with gates
 - Task contract validation (required inputs/outputs)
 - Blocker reporting and escalation
-- Orchestrator dashboard (terminal-based)
+- Kanban board visualization (terminal-based web UI)
 
 ### Fleet Mode (New Project)
 - `hermes-fleet fleet new "<goal>"` — create new fleeted repo from goal
@@ -195,20 +208,7 @@ workspace, and run a PR-based team workflow.
 - Team proposal from fingerprint + goal
 - First issue auto-created for orchestrator
 
----
-
-## v0.7 — Orchestrator Agent Integration
-
-**Goal**: The orchestrator agent can manage the fleet autonomously.
-
-- Fleet event bus for agent-to-agent communication
-- Orchestrator SOUL.md with Kanban management capabilities
-- Orchestrator can create, assign, handoff tasks
-- Orchestrator can detect stalled agents
-- Orchestrator can request fleet status
-- Integration with Hermes Agent delegation system
-
----
+|---
 
 ## v1.0 — Production-Ready
 
