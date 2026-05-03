@@ -1,6 +1,6 @@
 # Hermes Fleet — Repo Fleet Mode
 
-> **Status**: Design document (not yet implemented). Targeted for v0.5+.
+> **Status**: Design document (not yet implemented). Targeted for v0.7.
 >
 > This document describes how Hermes Fleet ingests an existing repository
 > and creates an isolated "fleeted" workspace where an agent team can

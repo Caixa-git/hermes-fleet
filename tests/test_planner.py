@@ -25,8 +25,10 @@ KEYWORD_TEAMS = [
     ("Write SEO-optimized blog posts", "content-creator"),
     ("Set up CI/CD pipeline and infrastructure", "devops-deployment"),
     ("Deploy to Kubernetes cluster", "devops-deployment"),
-    ("Build a simple CLI tool", "general-dev"),
+    ("Build a CLI tool", "general-dev"),
     ("", "general-dev"),
+    # False positive regression: substring "ai" should not trigger ai-app
+    ("Maintenance task on email system", "general-dev"),
 ]
 
 

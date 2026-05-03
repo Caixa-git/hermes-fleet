@@ -58,15 +58,25 @@ def recommend_team(goal: str) -> tuple[str, dict]:
     """
     Analyze a goal string and recommend a team.
 
-    Uses simple keyword matching for v0.1.
+    Uses keyword matching with start-of-word boundaries.
+    Prevents false positives for short keywords ("ai" matching
+    "maintenance") while allowing compound matches ("web app"
+    matching "web application").
     Returns (team_id, team_definition_dict).
     """
+    import re
+
     goal_lower = goal.lower()
 
     # Check keyword matches in priority order
     for keywords, team_id in _KEYWORD_TEAMS:
         for kw in keywords:
-            if kw in goal_lower:
+            # Start-of-word boundary prevents false positives for short
+            # keywords like "ai" (no match in "maintenance" or "email")
+            # without breaking compound matches like "web app" in
+            # "web application". Use re.escape for hyphenated terms.
+            pattern = r'\b' + re.escape(kw)
+            if re.search(pattern, goal_lower):
                 team_def = load_team(team_id)
                 if team_def:
                     return team_id, team_def

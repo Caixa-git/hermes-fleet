@@ -1,10 +1,10 @@
-# Hermes Fleet — Technical Specification v0.1
+# Hermes Fleet — Technical Specification v0.3
 
 ---
 
 ## 1. Overview
 
-Hermes Fleet is a self-contained CLI tool that generates secure, role-based Hermes Agent team configurations. v0.1 is a **generator and validator** only — it does not execute agents, manage containers, or require any existing Hermes installation.
+Hermes Fleet is a self-contained CLI tool that generates secure, role-based Hermes Agent team configurations and manages their container lifecycle. v0.3 extends the generator into a **fleet runner** — it can start, stop, monitor, and restart agent containers via Docker. It does not require any existing Hermes installation.
 
 ---
 
@@ -70,9 +70,8 @@ Done = output + verification + record + handoff.
 **Completion artifacts**: Handoff contracts, completion gates, kanban templates,
 handoff validation rules.
 
-> **Future**: v0.3+ will add formal work-lifecycle tracking and verifiable
-> completion definitions under the Agent Accountability Protocol
-> (`docs/design/AGENT_ACCOUNTABILITY_PROTOCOL.md`).
+> **Implemented in v0.3**: Container lifecycle commands (up/down/status/logs/restart)
+> and handoff contract required_fields validation.
 
 ---
 
@@ -171,11 +170,12 @@ Options:
   --help         Show this message and exit.
 ```
 
-Loads all teams, roles, and permission presets, then runs:
+Loads all teams, roles, handoff contracts, and permission presets, then runs:
 - All team agents have corresponding role contracts
 - All role permission_presets resolve to known presets
-- No duplicate contract IDs across teams and roles
-- (Future) Handoff-to-role references
+- All handoff contracts have at least one required_field (v0.3)
+- Handoff contract role references resolve to existing roles
+- Role handoff_contract references resolve to existing contracts
 
 Returns exit code 0 if all checks pass, 1 if any check fails.
 
@@ -193,6 +193,101 @@ Options:
 ```
 
 Returns exit code 0 if all checks pass, 1 if any check fails.
+
+### 3.6 `hermes-fleet up`
+
+Starts the fleet containers.
+
+```
+Usage: hermes-fleet up [OPTIONS]
+
+Options:
+  --detach / --attach  Run in background (default: detach)
+  --help               Show this message and exit.
+```
+
+Runs `docker compose up` with the generated compose file. Requires Docker.
+
+### 3.7 `hermes-fleet down`
+
+Stops the fleet containers.
+
+```
+Usage: hermes-fleet down [OPTIONS]
+
+Options:
+  --volumes, -v  Remove named volumes
+  --help         Show this message and exit.
+```
+
+### 3.8 `hermes-fleet status`
+
+Checks fleet container status.
+
+```
+Usage: hermes-fleet status [OPTIONS]
+
+Options:
+  --help  Show this message and exit.
+```
+
+Shows per-container state (running/exited), health, and uptime.
+
+### 3.9 `hermes-fleet logs <agent>`
+
+Shows logs for a specific agent container.
+
+```
+Usage: hermes-fleet logs [OPTIONS] AGENT
+
+Arguments:
+  AGENT  Agent/service ID (e.g. 'orchestrator', 'reviewer')
+
+Options:
+  --tail, -t INTEGER  Number of lines from the end (default: 100)
+  --help              Show this message and exit.
+```
+
+### 3.10 `hermes-fleet restart <agent>`
+
+Restarts a specific agent container.
+
+```
+Usage: hermes-fleet restart [OPTIONS] AGENT
+
+Arguments:
+  AGENT  Agent/service ID to restart (e.g. 'orchestrator')
+
+Options:
+  --help  Show this message and exit.
+```
+
+### 3.11 `hermes-fleet customize`
+
+Manages custom roles, permissions, and resources.
+
+```
+Usage: hermes-fleet customize [OPTIONS] COMMAND [ARGS]...
+
+Commands:
+  roles        Add or list custom role definitions
+  permissions  Add or list custom permission presets
+  resources    Edit default CPU/memory limits
+```
+
+### 3.12 `hermes-fleet agency`
+
+Manages agency-agents import and update workflow.
+
+```
+Usage: hermes-fleet agency [OPTIONS] COMMAND [ARGS]...
+
+Commands:
+  lock    Lock agency-agents to a specific ref
+  fetch   Pull latest upstream without applying
+  diff    Show role definition changes since locked ref
+  update  Compile + provenance metadata → promote
+```
 
 ---
 
@@ -228,6 +323,42 @@ Returns exit code 0 if all checks pass, 1 if any check fails.
 - `deployer` — Deployment; requires explicit approval
 - `growth-marketer` — Future
 - `customer-support-specialist` — Future
+
+### 4.3 iOS/iPhone App Team (`iphone-app`)
+
+**Purpose**: Native iOS application development with Swift.
+
+**Agents**: `orchestrator`, `frontend-developer`, `reviewer`, `qa-tester`
+
+### 4.4 AI/ML App Team (`ai-app`)
+
+**Purpose**: LLM-powered applications, RAG systems, and ML model integration.
+
+**Agents**: `orchestrator`, `frontend-developer`, `backend-developer`, `reviewer`, `qa-tester`, `technical-writer`
+
+### 4.5 Security Audit Team (`security-audit`)
+
+**Purpose**: Code security review, penetration testing methodology, vulnerability assessment.
+
+**Agents**: `orchestrator`, `security-reviewer`, `reviewer`
+
+### 4.6 Research and Writing Team (`research-writing`)
+
+**Purpose**: Technical research papers, literature reviews, whitepapers.
+
+**Agents**: `orchestrator`, `technical-writer`, `reviewer`
+
+### 4.7 Content Creator Team (`content-creator`)
+
+**Purpose**: Blog posts, marketing content, social media, SEO strategy.
+
+**Agents**: `orchestrator`, `technical-writer`, `reviewer`
+
+### 4.8 DevOps Deployment Team (`devops-deployment`)
+
+**Purpose**: CI/CD pipelines, infrastructure as code, Kubernetes deployment.
+
+**Agents**: `orchestrator`, `deployer`, `reviewer`
 
 ---
 
@@ -371,6 +502,8 @@ services:
 - **Read-only root filesystem** — `read_only: true` must be set on all services
 - **No shared global .env** — Environment variables must be per-service, not `env_file: .env`
 - **Resource limits set** — CPU and memory limits should be present
+- **Healthcheck configured** — Every service has a healthcheck (pgrep) with 30s interval
+- **Restart policy set** — Every service is set to `restart: unless-stopped`
 
 ### 7.3 Network Configuration
 
@@ -488,6 +621,7 @@ hermes-fleet/
 │       ├── kanban.py
 │       ├── planner.py
 │       ├── policy.py
+│       ├── runner.py
 │       ├── safe_defaults.py
 │       └── teams.py
 ├── presets/
