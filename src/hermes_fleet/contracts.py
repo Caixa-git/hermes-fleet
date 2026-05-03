@@ -277,6 +277,29 @@ class TeamProposal(BaseModel):
 # ── Cross-Reference Validation ─────────────────────────────────────────────────
 
 
+class FoundationLockSource(BaseModel):
+    """A single foundation source entry in foundation.lock.yaml."""
+
+    id: str
+    version: str
+    locked_at: str  # ISO date
+
+
+class FoundationLock(BaseModel):
+    """Contract for foundation.lock.yaml."""
+
+    foundation_version: int = 1
+    sources: list[FoundationLockSource]
+
+
+class AgencyLock(BaseModel):
+    """Contract for agency.lock.yaml."""
+
+    agency_version: int = 1
+    ref: str = "main"
+    locked_at: str  # ISO date
+
+
 class CheckResult:
     """Result of a single cross-reference check."""
 

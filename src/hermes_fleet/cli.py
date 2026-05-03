@@ -76,6 +76,37 @@ def init(
     (fleet_dir / "generated" / "agents").mkdir(parents=True, exist_ok=True)
     (fleet_dir / "generated" / "kanban").mkdir(parents=True, exist_ok=True)
 
+    # Create lock files
+    foundation_lock = fleet_dir / "foundation.lock.yaml"
+    agency_lock = fleet_dir / "agency.lock.yaml"
+    today = __import__("datetime").datetime.now().strftime("%Y-%m-%d")
+
+    if not foundation_lock.exists():
+        import yaml
+        lock_data = {
+            "foundation_version": 1,
+            "sources": [
+                {"id": "agent_oriented_planning", "version": "v1", "locked_at": today},
+                {"id": "llm_mas_survey", "version": "v1", "locked_at": today},
+                {"id": "nist_rbac", "version": "v1", "locked_at": today},
+                {"id": "contract_net_protocol", "version": "v1", "locked_at": today},
+            ],
+        }
+        with open(foundation_lock, "w") as f:
+            yaml.dump(lock_data, f, default_flow_style=False)
+        console.print(f"  Created: {foundation_lock}")
+
+    if not agency_lock.exists():
+        import yaml
+        lock_data = {
+            "agency_version": 1,
+            "ref": "v0.1.0",
+            "locked_at": today,
+        }
+        with open(agency_lock, "w") as f:
+            yaml.dump(lock_data, f, default_flow_style=False)
+        console.print(f"  Created: {agency_lock}")
+
     console.print(
         "\nNext steps:\n"
         f"  hermes-fleet plan \"<your goal>\"  — Recommend a team\n"
@@ -262,6 +293,7 @@ def validate(
         team_from_dict,
         role_from_dict,
         handoff_from_dict,
+        CheckResult,
         validate_contract_cross_references,
     )
     from hermes_fleet.teams import (
@@ -304,6 +336,29 @@ def validate(
         teams, roles, known_presets=known_presets, handoff_contracts=handoffs_dict
     )
 
+    # Lock file checks — only if .fleet/ exists (project context)
+    import yaml
+    from hermes_fleet.contracts import FoundationLock, AgencyLock
+    fleet_dir = _get_fleet_dir(Path.cwd())
+
+    if fleet_dir.exists():
+        foundation_path = fleet_dir / "foundation.lock.yaml"
+        agency_path = fleet_dir / "agency.lock.yaml"
+
+        if not foundation_path.exists():
+            results.append(CheckResult("failed", "lock:foundation", "foundation.lock.yaml not found — run 'hermes-fleet init'"))
+        else:
+            with open(foundation_path) as f:
+                FoundationLock(**yaml.safe_load(f))
+            results.append(CheckResult("passed", "lock:foundation"))
+
+        if not agency_path.exists():
+            results.append(CheckResult("failed", "lock:agency", "agency.lock.yaml not found — run 'hermes-fleet init'"))
+        else:
+            with open(agency_path) as f:
+                AgencyLock(**yaml.safe_load(f))
+            results.append(CheckResult("passed", "lock:agency"))
+
     passed = sum(1 for r in results if r.status == "passed")
     failed = sum(1 for r in results if r.status == "failed")
 
@@ -322,6 +377,37 @@ def validate(
         console.print("\n[red]Contract validation FAILED.[/red]")
         raise typer.Exit(1)
     console.print("\n[green]All contract checks PASSED.[/green]")
+
+
+agency_app = typer.Typer(
+    name="agency",
+    help="Manage agency-agents lock and update workflow.",
+    add_completion=False,
+)
+app.add_typer(agency_app, name="agency")
+
+
+@agency_app.command("lock")
+def agency_lock(
+    ref: str = typer.Argument(..., help="Commit SHA or release tag to lock to"),
+):
+    """Lock agency-agents to a specific ref."""
+    from datetime import datetime
+    import yaml
+    fleet_dir = _get_fleet_dir(Path.cwd())
+    agency_path = fleet_dir / "agency.lock.yaml"
+
+    if not agency_path.exists():
+        console.print("[red]✗ agency.lock.yaml not found. Run 'hermes-fleet init' first.[/red]")
+        raise typer.Exit(1)
+
+    with open(agency_path) as f:
+        data = yaml.safe_load(f) or {}
+    data["ref"] = ref
+    data["locked_at"] = datetime.now().strftime("%Y-%m-%d")
+    with open(agency_path, "w") as f:
+        yaml.dump(data, f, default_flow_style=False)
+    console.print(f"[green]✓ agency.lock.yaml locked to {ref}[/green]")
 
 
 test_app = typer.Typer(

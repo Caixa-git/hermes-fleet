@@ -125,10 +125,8 @@ Returns:
 
 **Keyword heuristics** (v0.1 only):
 
-| Keywords | Team |
-|----------|------|
-| "saas", "subscription", "dashboard", "auth", "billing", "payment", "web app", "platform" | saas-medium |
-| Everything else | general-dev |
+- **"saas", "subscription", "dashboard", "auth", "billing", "payment", "web app", "platform"** → saas-medium
+- **Everything else** → general-dev
 
 ### 3.3 `hermes-fleet generate`
 
@@ -305,16 +303,14 @@ completion_gates:
 
 ## 6. Permission Presets
 
-| Preset ID | Workspace | Repo Write | Secrets | Network |
-|-----------|-----------|-----------|---------|---------|
-| `orchestrator_safe` | kanban_only | false | [] | control_plane_only |
-| `repo_readonly` | readonly | false | [] | none |
-| `docs_rw_repo_ro` | docs_write | false | [] | none |
-| `frontend_worktree_rw` | own_worktree_rw | true | PUBLIC_ONLY | package_registry |
-| `backend_worktree_rw` | own_worktree_rw | true | DEV_ONLY | package_registry |
-| `schema_worktree_rw` | own_worktree_rw | true | DATABASE_URL_DEV | package_registry |
-| `readonly_no_network` | readonly | false | [] | none |
-| `test_runner` | readonly_or_test_tmp | false | [] | none |
+- **`orchestrator_safe`** — workspace: kanban_only, repo_write: false, secrets: [], network: control_plane_only
+- **`repo_readonly`** — workspace: readonly, repo_write: false, secrets: [], network: none
+- **`docs_rw_repo_ro`** — workspace: docs_write, repo_write: false, secrets: [], network: none
+- **`frontend_worktree_rw`** — workspace: own_worktree_rw, repo_write: true, secrets: PUBLIC_ONLY, network: package_registry
+- **`backend_worktree_rw`** — workspace: own_worktree_rw, repo_write: true, secrets: DEV_ONLY, network: package_registry
+- **`schema_worktree_rw`** — workspace: own_worktree_rw, repo_write: true, secrets: DATABASE_URL_DEV, network: package_registry
+- **`readonly_no_network`** — workspace: readonly, repo_write: false, secrets: [], network: none
+- **`test_runner`** — workspace: readonly_or_test_tmp, repo_write: false, secrets: [], network: none
 
 ---
 
@@ -359,18 +355,16 @@ services:
 
 ### 7.2 Non-Negotiable Defaults (must be true unless user overrides)
 
-| Rule | Enforcement |
-|------|------------|
-| No privileged containers | `privileged: true` must NOT exist in any service |
-| No docker.sock mount | `/var/run/docker.sock` must NOT be mounted |
-| No host network mode | `network_mode: host` must NOT exist |
-| `cap_drop: [ALL]` | Every service must have this |
-| `no-new-privileges: true` | Every service must have this |
-| `pids_limit` set | Every service must have a pid limit (default 256) |
-| Separate volumes per agent | Each agent must have its own named volume for /opt/data |
-| Read-only root filesystem | `read_only: true` must be set on all services |
-| No shared global .env | Environment variables must be per-service, not `env_file: .env` |
-| Resource limits set | CPU and memory limits should be present |
+- **No privileged containers** — `privileged: true` must NOT exist in any service
+- **No docker.sock mount** — `/var/run/docker.sock` must NOT be mounted
+- **No host network mode** — `network_mode: host` must NOT exist
+- **`cap_drop: [ALL]`** — Every service must have this
+- **`no-new-privileges: true`** — Every service must have this
+- **`pids_limit` set** — Every service must have a pid limit (default 256)
+- **Separate volumes per agent** — Each agent must have its own named volume for /opt/data
+- **Read-only root filesystem** — `read_only: true` must be set on all services
+- **No shared global .env** — Environment variables must be per-service, not `env_file: .env`
+- **Resource limits set** — CPU and memory limits should be present
 
 ### 7.3 Network Configuration
 
@@ -540,15 +534,13 @@ hermes-fleet/
 
 ## 11. Technical Stack
 
-| Component | Choice | Reason |
-|-----------|--------|--------|
-| Language | Python 3.10+ | Hermes Agent is Python; easy integration later |
-| CLI Framework | Typer | Fast CLI development, auto --help |
-| Schema Validation | Pydantic | Type-safe data models, serialization |
-| YAML | PyYAML | Read/write YAML presets and generated config |
-| Templates | Python f-strings | Inline rendering in generator.py and kanban.py |
-| Testing | pytest + pyyaml | Standard Python testing |
-| Testing Strategy | Unit + snapshot + structural | Verify content, structure, and safety |
+- **Language**: Python 3.10+ — Hermes Agent is Python; easy integration later
+- **CLI Framework**: Typer — Fast CLI development, auto --help
+- **Schema Validation**: Pydantic — Type-safe data models, serialization
+- **YAML**: PyYAML — Read/write YAML presets and generated config
+- **Templates**: Python f-strings — Inline rendering in generator.py and kanban.py
+- **Testing**: pytest + pyyaml — Standard Python testing
+- **Testing Strategy**: Unit + snapshot + structural — Verify content, structure, and safety
 
 ---
 
@@ -592,12 +584,13 @@ This ensures:
 
 ## 14. Future Scope
 
-Designs for future versions are maintained as separate documents:
+Designs beyond v0.1 are maintained as separate documents:
 
-| Version | Document | Focus |
-|---------|----------|-------|
-| v0.2 | `docs/CONTRACT_SCHEMAS.md` | Contract-driven team composition, cross-reference validation |
-| v0.2 | `docs/AGENCY_AGENTS_UPDATE_MODEL.md` | Two lock layers, agency-agents import protocol |
-| v0.5+ | `REPO_FLEET_MODE.md` | GitHub integration, fleet mode for existing repos |
+- **`docs/AGENCY_AGENTS_UPDATE_MODEL.md`** — Two lock layers, agency-agents import protocol (v0.2)
+- **`REPO_FLEET_MODE.md`** — GitHub integration, fleet mode for existing repos (v0.5+)
 
-These documents are planning references. No code from them is implemented in v0.1.
+The following v0.2 designs from `docs/CONTRACT_SCHEMAS.md` are now implemented in v0.1/v0.2:
+- TeamContract, RoleContract, PermissionPresetContract, HandoffContract — all in `src/hermes_fleet/contracts.py`
+- Cross-reference validation in `validate` command
+- Handoff YAML presets in `presets/handoffs/`
+- Role → handoff contract references in all 14 role YAMLs
