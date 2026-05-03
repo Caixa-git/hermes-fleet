@@ -198,7 +198,8 @@ def generate(
     if missing_roles:
         console.print(
             f"[red]✗ Team '{selected_team}' references unknown roles: "
-            f"{', '.join(missing_roles)}[/red]"
+            f"{', '.join(missing_roles)}[/red]\n"
+            f"  Run 'hermes-fleet validate' for full diagnostics."
         )
         raise typer.Exit(1)
 
@@ -219,6 +220,7 @@ def generate(
         )
         for bp in bad_presets:
             console.print(f"  [red]  {bp}[/red]")
+        console.print("  Run 'hermes-fleet validate' for full diagnostics.")
         raise typer.Exit(1)
 
     # Generate
@@ -236,7 +238,7 @@ def generate(
         f"  {output_dir}/agents/<agent-id>/SOUL.md\n"
         f"  {output_dir}/agents/<agent-id>/policy.yaml\n"
         f"  {output_dir}/kanban/\n"
-        "\nNext: hermes-fleet test safe-defaults"
+        "\nNext: hermes-fleet test safe-defaults or hermes-fleet validate"
     )
 
 
