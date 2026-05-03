@@ -6,6 +6,15 @@
 
 Prompt is not a permission boundary. Container is.
 
+```
+  ╔═══════════════════════════════════╗
+  ║  Role.  Boundary.  Completion.    ║
+  ║                                   ║
+  ║  A simple knife is the most       ║
+  ║  deadly.                          ║
+  ╚═══════════════════════════════════╝
+```
+
 Hermes Fleet helps you turn a vague goal into a safe, role-based Hermes Agent team. Instead of manually wiring profiles, SOUL.md files, Kanban templates, Docker containers, workspaces, and permissions, Hermes Fleet generates a secure team scaffold with least-privilege defaults.
 
 ---
