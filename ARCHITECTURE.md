@@ -9,7 +9,8 @@ It operates in two modes:
 | Mode | Input | Output |
 |------|-------|--------|
 | **New Project** | User goal text | Generated team config in `.fleet/generated/` |
-| **Existing Repo (Fleet Mode)** | GitHub repo URL + goal | Fleeted repo + team + first issue |
+| **Owned Repo (Fleet Mode)** | GitHub repo URL (write access) + goal | `fleeted/main` branch in same repo + team |
+| **External Repo (Fleet Mode)** | GitHub repo URL (read-only) + goal | Fleeted repo + team + first issue |
 
 This document covers the New Project architecture. See
 `REPO_FLEET_MODE.md` for the Fleet Mode design.

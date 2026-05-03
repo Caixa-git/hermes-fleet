@@ -175,12 +175,21 @@ workspace, and run a PR-based team workflow.
 - Team proposal from goal only (no fingerprint needed)
 - Auto-create fleeted repo on GitHub
 
-### Fleet Mode (Existing Repo)
-- `hermes-fleet fleet ingest <repo-url> "<goal>"` — ingest existing repo
+### Fleet Mode (Owned Repo)
+- `hermes-fleet fleet ingest <repo-url> "<goal>"` — ingest owned repo
+- Permission detection: write access → stay in same repo
+- Create `fleeted/main` branch instead of new repo
+- PR target: `fleeted/main`. Merge to `main`: human approval only
+- Same CI/CD, same secrets (read-only), same issue tracker
+
+### Fleet Mode (External Repo)
+- `hermes-fleet fleet ingest <repo-url> "<goal>"` — ingest external repo
+- Permission detection: read-only → create `fleeted-<name>` repo
 - Read-only source clone, fleeted repo creation
 - Repository fingerprint generation
 - Team proposal from fingerprint + goal
 - First issue auto-created for orchestrator
+- Upstream contribution candidates in exit report
 
 ---
 

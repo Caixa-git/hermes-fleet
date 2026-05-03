@@ -840,3 +840,48 @@ exit_strategy:
 See `REPO_FLEET_MODE.md` section 12 for the `FLEETED_EXIT_REPORT.md`
 template. The report is generated automatically when any exit trigger
 fires.
+
+---
+
+## 19. Fleet Mode Selection Schema (v0.5+)
+
+See `REPO_FLEET_MODE.md` section 2.3 for the full decision tree.
+
+### 19.1 Mode Selection Config
+
+```yaml
+# .fleet/fleet.yaml (mode fields)
+mode: new_project | owned | external
+source_repository: string   # URL, empty for new_project
+source_access: write | read-only | none
+fleeted_repository: string  # empty for owned mode
+fleeted_main_branch: string # default: "fleeted/main" for owned mode
+```
+
+### 19.2 Mode Selection Decision Tree
+
+```text
+1. Has repo URL?
+   ├── No  → new_project mode
+   └── Yes →
+2. Can authenticate?
+   ├── No  → external mode (public clone)
+   └── Yes →
+3. Has write access?
+   ├── No  → external mode (read-only fork)
+   └── Yes →
+4. User wants separate workspace?
+   ├── Yes → external mode (explicit)
+   └── No  → owned mode (fleeted/main branch)
+```
+
+### 19.3 Permission Detection
+
+| Method | How | Reliability |
+|--------|-----|-------------|
+| GitHub API `GET /repos/:owner/:repo` | Check `permissions.push` field | High |
+| `git push --dry-run` to a test branch | Attempt a no-op push | High but noisy |
+| User-declared mode flag | `hermes-fleet fleet ingest --mode owned` | Highest (user knows) |
+
+The default detection method is GitHub API. If the API is unavailable,
+the user can explicitly declare `--mode owned` or `--mode external`.

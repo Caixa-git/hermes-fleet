@@ -8,9 +8,16 @@
 
 ---
 
-## 1. Two Modes
+## 1. Three Modes
 
-Hermes Fleet supports two starting modes:
+Hermes Fleet supports three starting modes, depending on whether the
+user has a repository and what permissions they hold:
+
+| Mode | User Provides | Fleet Creates | Use Case |
+|------|---------------|---------------|----------|
+| **New Project** | Goal only | New repo + team scaffold | Greenfield projects |
+| **Owned Repo** | Repo URL (write access) | `fleeted/main` branch in same repo | User's own repo |
+| **External Repo** | Repo URL (read-only) | New `fleeted-<name>` repo | Third-party repos |
 
 ### 1.1 New Project Mode
 
@@ -26,31 +33,90 @@ Hermes Fleet: plan → generate → .fleet/
 Team: agents with roles, policies, isolation
 ```
 
-See `ARCHITECTURE.md` and `SPEC.md` for the current implementation.
+### 1.2 Owned Repo Mode
 
-### 1.2 Existing Repo Mode (Fleet Mode)
+The user provides a GitHub repository URL where they have **write
+access**. No separate fleeted repo is needed. The fleet works inside
+the same repository on isolated branches.
 
-The user provides a GitHub repository URL and a goal. Hermes Fleet:
+```
+User: "Refactor the auth module of https://github.com/my-org/my-repo.git"
+        ↓
+1. Detect write permission → stay in same repo
+2. Create fleeted/main branch (protected, no direct push)
+3. Fingerprint source repo (lang, deps, CI, security posture)
+4. Generate Team Proposal (fingerprint + goal → roles)
+5. Open first issue → agent team begins PR-based work
+│
+All work: fleeted/* branches → PR → fleeted/main
+Merge to main: requires human approval or high merge gate
+```
 
-1. Clones the source repo as a **read-only reference**
-2. Creates a new **fleeted repository** as the workspace
-3. Generates a **repository fingerprint** from the source
-4. Generates a **Team Proposal** from the fingerprint + goal
-5. Opens the first issue to start work
+Key properties:
+- **No new repository** is created. The fleet works in the same repo.
+- **`fleeted/main`** is the fleet's integration branch. All agent PRs
+  target `fleeted/main`.
+- **`main` is protected.** Direct push to `main` is forbidden for agents.
+  Merging from `fleeted/main` to `main` requires human approval or a
+  high-confidence merge gate decision.
+- **Audit trail** (issues, PRs, reviews) stays in the same repository.
+- **Source repo's existing CI/CD and secrets are visible.** The fleet
+  can use existing CI, but must not modify deployment config or secrets.
+
+### 1.3 External Repo Mode
+
+The user provides a GitHub repository URL where they have **read-only
+access** or must not modify the original. Hermes Fleet creates a new
+fleeted repository as the workspace.
 
 ```
 User: "Improve the security of https://github.com/NousResearch/hermes-agent.git"
         ↓
-1. Clone source (read-only reference)
+1. Detect read-only permission → create fleeted repo
 2. Create fleeted-Caixa-git/fleeted-hermes-agent
-3. Fingerprint source repo (lang, deps, CI, security posture)
-4. Generate Team Proposal (fingerprint + goal → roles)
-5. Open first issue → agent team begins PR-based work
+3. Clone source (read-only reference)
+4. Fingerprint source repo (lang, deps, CI, security posture)
+5. Generate Team Proposal (fingerprint + goal → roles)
+6. Open first issue → agent team begins PR-based work
+│
+All work: fleeted repo only. Source repo never modified.
 ```
+
+Key properties:
+- **New repository** is created (`fleeted-<source-name>`).
+- **Source repo is read-only upstream.** Never cloned with write access.
+- **Secrets, settings, Actions secrets, deployment config** are NOT
+  copied. The fleeted repo starts empty of all sensitive configuration.
+- **All work** happens in the fleeted repo.
+- **Upstream contribution candidates** are documented in
+  `FLEETED_EXIT_REPORT.md` for manual porting.
 
 ---
 
-## 2. Fleeted Repository Naming
+## 2. Naming and Branch Conventions
+
+### 2.1 Owned Repo — Branch Naming (No New Repo)
+
+In Owned Repo Mode, no new repository is created. The fleet uses branch
+names within the existing repository:
+
+| Convention | Example | Purpose |
+|------------|---------|---------|
+| `fleeted/main` | `fleeted/main` | Fleet integration branch. Protected, no direct push. |
+| `fleeted/<agent-id>/<task-id>` | `fleeted/frontend-dev/TASK-042` | Agent working branches. All PRs target `fleeted/main`. |
+
+Rules:
+- `fleeted/main` is created on first `fleet ingest`. Protected branch:
+  no direct push, no force push, requires PR for all changes.
+- The original `main` branch is preserved unchanged by the fleet.
+- Only the user (or an authorized human) can merge `fleeted/main` into
+  `main`. The orchestrator may open a PR and label it
+  `needs-human-approval`.
+- `fleeted/*` branches are ephemeral. Deleted after PR merge.
+
+### 2.2 External Repo — Repository Naming
+
+In External Repo Mode, a new repository is created:
 
 | Source | Fleeted Name | Owner |
 |--------|--------------|-------|
@@ -66,11 +132,58 @@ User: "Improve the security of https://github.com/NousResearch/hermes-agent.git"
 - A mapping file `.fleet/source-repo.yaml` stores the source URL and
   the fleeted repo URL
 
+### 2.3 Permission Detection and Mode Selection
+
+When a user provides a repo URL, the system detects the correct mode:
+
+```text
+1. Can we authenticate to the repo?
+   ├── No  → External Repo Mode (read-only public clone)
+   └── Yes →
+2. Does the token have write access?
+   ├── No  → External Repo Mode (read-only fork)
+   └── Yes →
+3. Does the user want a separate workspace?
+   ├── Yes → External Repo Mode (explicit choice)
+   └── No  → Owned Repo Mode (fleeted/main in same repo)
+```
+
+The decision is recorded in `.fleet/fleet.yaml`:
+
+```yaml
+mode: owned | external | new_project
+source_repository: "https://github.com/org/repo.git"
+source_access: write | read-only
+fleeted_repository: ""  # empty for owned mode
+fleeted_main_branch: "fleeted/main"
+```
+
 ---
 
 ## 3. Source Repo Safety Boundaries
 
-**The source repository is never modified.** This is a hard rule.
+**The source repository is never modified by fleet agents.** This is a
+hard rule. However, the boundary differs by mode:
+
+### 3.1 Owned Repo Mode Boundaries
+
+In Owned Repo Mode, the fleet works inside the same repository but on
+isolated branches:
+
+| Resource | Treatment |
+|----------|-----------|
+| `main` branch | Protected. No direct push, no agent force push. |
+| `fleeted/main` branch | Fleet integration branch. All agent PRs target this. |
+| `fleeted/*` branches | Agent working branches. Ephemeral, deleted after PR merge. |
+| GitHub Secrets | Visible but must not be read or modified by agents. |
+| GitHub Actions / CI | Fleet can trigger CI on `fleeted/*` branches. Must not modify workflow files. |
+| Deployment config | Agents must not modify deployment files in any branch. |
+| Issue tracker | Fleet creates issues and PRs in the same repo. |
+| Settings / collaborators | Not modified. Branch protection for `fleeted/main` is set by the system. |
+
+### 3.2 External Repo Mode Boundaries
+
+In External Repo Mode, the source repo is completely isolated:
 
 | Resource | Treatment |
 |----------|-----------|
@@ -82,9 +195,14 @@ User: "Improve the security of https://github.com/NousResearch/hermes-agent.git"
 | Settings / collaborators | **Not copied.** Fleeted repo starts with default settings. |
 | Wiki / Pages | **Not copied.** |
 
-The fleeted repo starts as a clean fork of the source with **no
-automation, no secrets, no deployment config, and no access to
-production infrastructure.**
+### 3.3 Common Rules (Both Modes)
+
+- No agent may modify deployment config, CI/CD workflow files, or
+  repository settings in any context.
+- No agent may read or expose GitHub Secrets or environment variables
+  containing credentials.
+- The orchestrator audits all branches and PRs daily for boundary
+  violations.
 
 ---
 
@@ -422,6 +540,21 @@ The orchestrator evaluates exit criteria after every PR merge:
 6. **Escalate to human.** The orchestrator creates a summary issue with
    the exit recommendation. The human decides: exit, continue, or adjust
    scope.
+
+### 11.6 Mode-Specific Exit Behavior
+
+The exit strategy behaves differently depending on mode:
+
+| Aspect | Owned Repo Mode | External Repo Mode |
+|--------|-----------------|-------------------|
+| **Exit artifact location** | Committed to `fleeted/main` branch | Committed to fleeted repo root |
+| **Source repo impact** | `fleeted/main` branch remains. Optionally open a PR to `main`. | No impact. Fleeted repo can be archived. |
+| **Upstream contribution** | PR already exists in the same repo. Human reviews and merges. | PRs exist only in fleeted repo. Upstream candidates documented in exit report. |
+| **Fleeted cleanup** | `fleeted/main` and `fleeted/*` branches can be deleted. | Entire fleeted repo can be archived or deleted. |
+| **Exit report target** | Filed as an Issue and committed to `fleeted/main`. | Filed as an Issue and committed to fleeted repo root. |
+
+In both modes, the exit report is the permanent record. The user decides
+whether to keep, archive, or delete the fleeted workspace.
 
 ---
 
