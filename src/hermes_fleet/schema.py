@@ -144,3 +144,120 @@ class SafeDefaultsResult(BaseModel):
     check: str
     status: str  # "passed", "failed", "skipped"
     message: str = ""
+
+
+# ──────────────────────────────────────────────
+# v0.2+ Contract Schemas
+# These models define the formal contract types
+# for deterministic team composition.
+# ──────────────────────────────────────────────
+
+
+class RoleFidelityMode(str, Enum):
+    """How closely the SOUL.md must follow the upstream spec."""
+    PRESERVE = "preserve"
+    """Original spec included verbatim. Default for all roles."""
+    NEAR_VERBATIM = "near_verbatim"
+    """Minor formatting changes allowed; meaning preserved."""
+    SUMMARIZE = "summarize"
+    """AI may summarize. Used only when upstream spec is too large."""
+
+
+class SourceProvenance(BaseModel):
+    """Provenance metadata tracing a role back to its upstream spec."""
+    repository: str = ""
+    """URL of the upstream repository (e.g. agency-agents)."""
+    ref: str = ""
+    """Commit SHA or release tag."""
+    path: str = ""
+    """Path to the spec within the repository."""
+    hash: str = ""
+    """Content hash of the original spec."""
+
+
+class IdentityDriftGuard(BaseModel):
+    """Pre-work and post-work self-check questions."""
+    pre_work: List[str] = Field(default_factory=lambda: [
+        "Is this task allowed for my role?",
+        "Do I have the required context?",
+        "Do I have permission for the requested action?",
+        "Should this be handed off to another agent?",
+    ])
+    post_work: List[str] = Field(default_factory=lambda: [
+        "Did I stay inside my role?",
+        "Did I touch only allowed paths?",
+        "Did I produce required outputs?",
+        "Did I leave a clear handoff?",
+    ])
+
+
+class ValidationRule(BaseModel):
+    """A single validation rule for a handoff field."""
+    field: str
+    required: bool = True
+    min_length: Optional[int] = None
+    max_length: Optional[int] = None
+    enum: Optional[List[str]] = None
+    """If set, the field value must be one of these."""
+    min_items: Optional[int] = None
+    """For list fields: minimum number of items."""
+    regex: Optional[str] = None
+
+
+class TeamProposalCustomizations(BaseModel):
+    """Optional overrides to a Team Contract's defaults."""
+    agents: List[str] = Field(default_factory=list)
+    """Subset of the role_inventory. Empty = use all."""
+    permission_overrides: Dict[str, str] = Field(default_factory=dict)
+    """role_id → alternative preset_id."""
+    handoff_overrides: Dict[str, str] = Field(default_factory=dict)
+    """contract_id → alternative contract_id."""
+
+
+class TeamProposal(BaseModel):
+    """Constrained schema for AI or human team proposals."""
+    goal: str
+    recommended_team_id: str
+    rationale: str = ""
+    customizations: TeamProposalCustomizations = Field(
+        default_factory=TeamProposalCustomizations
+    )
+
+
+class HandoffContractSchema(BaseModel):
+    """A formal handoff contract between roles."""
+    id: str
+    from_roles: List[str] = Field(default_factory=list)
+    """Which roles may originate this handoff."""
+    allowed_next_roles: List[str] = Field(default_factory=list)
+    """Which roles may receive this handoff."""
+    required_fields: List[str] = Field(default_factory=list)
+    """Fields that must be present in the handoff document."""
+    validation_rules: List[ValidationRule] = Field(default_factory=list)
+    completion_gate: CompletionGate = Field(default_factory=CompletionGate)
+
+
+class RoleContract(BaseModel):
+    """A formal role contract between upstream spec and fleet agent."""
+    id: str
+    source: SourceProvenance = Field(default_factory=SourceProvenance)
+    role_fidelity_mode: RoleFidelityMode = RoleFidelityMode.PRESERVE
+    allowed_task_types: List[str] = Field(default_factory=list)
+    forbidden_task_types: List[str] = Field(default_factory=list)
+    permission_preset: str = "repo_readonly"
+    """Reference to a known permission preset."""
+    handoff_contract: str = ""
+    """Reference to a known Handoff Contract."""
+    identity_drift_guards: IdentityDriftGuard = Field(
+        default_factory=IdentityDriftGuard
+    )
+
+
+class TeamContract(BaseModel):
+    """A formal team contract declaring required capabilities and role inventory."""
+    id: str
+    required_capabilities: List[str] = Field(default_factory=list)
+    role_inventory: List[str] = Field(default_factory=list)
+    permission_preset_mapping: Dict[str, str] = Field(default_factory=dict)
+    """role_id → preset_id mapping."""
+    handoff_contract_inventory: List[str] = Field(default_factory=list)
