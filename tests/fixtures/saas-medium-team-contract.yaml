@@ -1,0 +1,33 @@
+# Sample Team Contract: Saas Medium
+# Same input + same contracts → same validation results every run.
+team_contract:
+  id: saas-medium
+  required_capabilities:
+    - product_management
+    - frontend_development
+    - backend_development
+    - database_architecture
+    - quality_assurance
+    - security_review
+    - technical_writing
+  role_inventory:
+    - orchestrator
+    - product-manager
+    - ux-designer
+    - frontend-developer
+    - backend-developer
+    - database-architect
+    - qa-tester
+    - security-reviewer
+    - technical-writer
+  permission_preset_mapping:
+    orchestrator: orchestrator_safe
+    product-manager: docs_rw_repo_ro
+    ux-designer: docs_rw_repo_ro
+    frontend-developer: frontend_worktree_rw
+    backend-developer: backend_worktree_rw
+    database-architect: schema_worktree_rw
+    qa-tester: test_runner
+    security-reviewer: readonly_no_network
+    technical-writer: docs_rw_repo_ro
+  handoff_contract_inventory: []
