@@ -64,7 +64,7 @@ v0.1 is a **local CLI tool** that generates team configuration as text files. It
 | Generate policy.yaml for each agent | Done |
 | Generate Docker Compose with security defaults | Done |
 | Generate Kanban handoff templates | Done |
-| Validate generated config against 21 safe-default rules | Done |
+| Validate generated config against 22 safe-default rules | Done |
 | Deterministic output (same input → same output) | Done |
 | Run Docker containers | Not yet (v0.3) |
 | Execute Hermes agents | Not yet (v0.3) |
@@ -184,7 +184,7 @@ $ hermes-fleet generate --force
 
 $ hermes-fleet test safe-defaults --verbose
 Safe-defaults validation results:
-  Passed: 20  Failed: 0  Skipped: 1
+  Passed: 21  Failed: 0  Skipped: 1
 All safe-defaults checks PASSED.
 ```
 

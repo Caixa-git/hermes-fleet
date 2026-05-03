@@ -38,6 +38,9 @@ def generate_fleet(
         d.mkdir(parents=True, exist_ok=True)
 
     agents = team_def.get("agents", [])
+    # Note: team_def may also contain 'optional_agents' (dict of agent_id: bool).
+    # These are reserved for v0.2+ -- the generator does not produce configs for
+    # disabled optional agents in v0.1. See SPEC.md section 4.2.
 
     # --- Generate per-agent configs ---
     for agent_id in agents:

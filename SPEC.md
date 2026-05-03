@@ -299,6 +299,7 @@ completion_gates:
 | `docs_rw_repo_ro` | docs_write | false | [] | none |
 | `frontend_worktree_rw` | own_worktree_rw | true | PUBLIC_ONLY | package_registry |
 | `backend_worktree_rw` | own_worktree_rw | true | DEV_ONLY | package_registry |
+| `schema_worktree_rw` | own_worktree_rw | true | DATABASE_URL_DEV | package_registry |
 | `readonly_no_network` | readonly | false | [] | none |
 | `test_runner` | readonly_or_test_tmp | false | [] | none |
 
