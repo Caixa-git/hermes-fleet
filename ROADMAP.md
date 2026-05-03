@@ -85,10 +85,13 @@
 
 ---
 
-## v0.3 — Container Lifecycle Management and Handoff Contract Runtime
+## v0.3 — Container Lifecycle Management, AI Onboarding, and Preserve Compiler
 
-**Goal**: Actually run the generated containers, manage agent lifecycles, and validate handoff contracts at the runtime boundary.
+**Goal**: Actually run the generated containers, manage agent lifecycles,
+introduce an optional AI onboarding provider, and implement the
+agency-agents preserve compiler.
 
+### Container Lifecycle
 - `hermes-fleet up` — start the fleet (docker compose up)
 - `hermes-fleet down` — stop the fleet
 - `hermes-fleet status` — check agent health
@@ -96,16 +99,40 @@
 - `hermes-fleet restart <agent>` — restart individual agent
 - Container health checks and restart policies
 - Volume persistence management
-- **Handoff contract validation at handoff time**: when agent A hands off to agent B, the handoff contract is checked against the runtime state of the handoff document
-- **Handoff rejection**: if required fields are missing or validation rules fail, the handoff is rejected and the orchestrator is notified
-- **from_roles enforcement**: agent A must be in the contract's `from_roles` list; agent B must be in `allowed_next_roles`
+
+### AI Onboarding Provider (Optional)
+- Plugin interface for LLM-backed team recommendation
+- AI output constrained to the **Team Proposal schema**:
+  `recommended_team_id`, `rationale`, optional `customizations` only
+- Schema-validated: proposal rejected if team ID, roles, presets, or
+  handoff contracts don't resolve against known inventories
+- No auto-apply: every AI proposal must pass validation gates before
+  generation proceeds
+- The AI is a **foundation-bound planner**: it operates within the
+  boundaries of `foundation.lock.yaml` and `agency.lock.yaml`
+
+### agency-agents Preserve Compiler
+- Fetch upstream agency-agents role definitions
+- Compile to fleet Role Contracts with provenance metadata
+- Preserve mode: original spec included verbatim or near-verbatim
+- Role-diff view: show what changed when agency-agents ref is updated
+
+### Handoff Contract Runtime
+- **Handoff contract validation at handoff time**: when agent A hands off
+  to agent B, the handoff contract is checked against the runtime state
+  of the handoff document
+- **Handoff rejection**: if required fields are missing or validation
+  rules fail, the handoff is rejected and the orchestrator is notified
+- **from_roles enforcement**: agent A must be in the contract's
+  `from_roles` list; agent B must be in `allowed_next_roles`
 
 ---
 
-## v0.4 — Policy Enforcement and Role-Specific Handoff Validation
+## v0.4 — Policy Enforcement, Runtime Handoff, and Recovery
 
-**Goal**: Runtime policy enforcement at the container boundary. Role-specific handoff contracts validated at runtime.
+**Goal**: Runtime policy enforcement at the container boundary. Role-specific handoff contracts validated at runtime. Self-healing from violations.
 
+### Policy Enforcement
 - Policy enforcer sidecar per container
 - Filesystem write allow/deny enforcement
 - Command execution allow/deny enforcement
@@ -114,8 +141,17 @@
 - Violation detection and logging
 - Soft/medium/hard/critical violation levels
 - Role drift detection and alerting
+
+### Runtime Handoff Validation
 - **Role-specific handoff validation**: each agent's handoff contract is validated against its role's required outputs (not just common template)
 - **Isolation audit**: periodic verification that agent A cannot access agent B's data, files, or secrets
+
+### Recovery and Self-Healing
+- Soft violations: request correction, document in audit log
+- Medium violations: block task, notify orchestrator
+- Hard violations: pause container, preserve workspace snapshot, require review
+- Critical violations: kill container, redact output, create security incident, recommend secret rotation
+- Workspace snapshot preservation for forensic analysis
 
 ---
 
