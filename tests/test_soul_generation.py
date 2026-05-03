@@ -7,9 +7,9 @@ from pathlib import Path
 import pytest
 import yaml
 
-from hermes_fleet.generator import _render_soul_md
-from hermes_fleet.policy import compose_policy
-from hermes_fleet.teams import load_role, load_team
+from hermes_agency.generator import _render_soul_md
+from hermes_agency.policy import compose_policy
+from hermes_agency.teams import load_role, load_team
 
 ROLES_DIR = Path(__file__).resolve().parent.parent / "presets" / "roles"
 

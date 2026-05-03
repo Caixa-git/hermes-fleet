@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from hermes_fleet.teams import load_team, list_available_teams
+from hermes_agency.teams import load_team, list_available_teams
 
 
 PRESETS_DIR = Path(__file__).resolve().parent.parent / "presets" / "teams"
@@ -63,7 +63,7 @@ class TestTeamPresets:
     def test_team_validation_rejects_bad_yaml(self):
         """A team YAML without required fields must raise ValidationError."""
         from pydantic import ValidationError
-        from hermes_fleet.contracts import team_from_dict
+        from hermes_agency.contracts import team_from_dict
 
         with pytest.raises(ValidationError):
             team_from_dict({"id": "bad-team", "agents": []})
@@ -71,7 +71,7 @@ class TestTeamPresets:
     def test_role_validation_rejects_bad_yaml(self):
         """A role YAML without required fields must raise ValidationError."""
         from pydantic import ValidationError
-        from hermes_fleet.contracts import role_from_dict
+        from hermes_agency.contracts import role_from_dict
 
         with pytest.raises(ValidationError):
             role_from_dict({"id": "bad-role", "allowed_tasks": []})

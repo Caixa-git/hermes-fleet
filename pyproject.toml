@@ -3,13 +3,13 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "hermes-fleet"
-version = "0.4.0"
-description = "A secure team bootstrapper for isolated Hermes Agent fleets"
+name = "hermes-agency"
+version = "0.1.0"
+description = "From goal to team — where Kanban meets agency-agents"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
-    {name = "Nous Research", email = "hermes@nousresearch.com"},
+    {name = "Hermes Agency Contributors"},
 ]
 requires-python = ">=3.10"
 dependencies = [
@@ -18,7 +18,7 @@ dependencies = [
     "pydantic>=2.0",
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 2 - Pre-Alpha",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3.10",
@@ -27,7 +27,7 @@ classifiers = [
 ]
 
 [project.scripts]
-hermes-fleet = "hermes_fleet.cli:app"
+hermes-agency = "hermes_agency.cli:app"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -38,4 +38,4 @@ testpaths = ["tests"]
 pythonpath = ["src"]
 
 [tool.setuptools.package-data]
-"hermes_fleet" = ["py.typed"]
+"hermes_agency" = ["py.typed"]

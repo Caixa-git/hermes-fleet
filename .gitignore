@@ -1,4 +1,4 @@
-# Hermes Fleet
+# Hermes Agency
 __pycache__/
 *.py[cod]
 *.egg-info/
@@ -8,7 +8,7 @@ venv/
 dist/
 build/
 *.egg
-**/.fleet/generated/
+**/.fleet/plan/
 
 # OS
 .DS_Store

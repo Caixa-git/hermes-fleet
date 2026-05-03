@@ -1,12 +1,10 @@
 """Tests: Deterministic allocation — same input → same output.
 
-These tests verify that the planner and generator produce identical
-results when given the same inputs, regardless of external state.
-No mock overrides needed due to deterministic YAML loading order.
+These tests verify that the planner produces identical results
+when given the same inputs.
 """
 
-from hermes_fleet.planner import recommend_team
-from hermes_fleet.docker_compose import generate_docker_compose
+from hermes_agency.planner import recommend_team
 
 
 class TestDeterministicAllocation:
@@ -57,31 +55,3 @@ class TestDeterministicAllocation:
             id2, def2 = recommend_team(goal)
             assert id1 == id2
             assert def1["agents"] == def2["agents"]
-
-    def test_docker_compose_deterministic(self):
-        """Same team + same agents → identical docker-compose structure."""
-        agents_a = ["orchestrator", "reviewer"]
-        agents_b = ["orchestrator", "reviewer"]
-        compose1 = generate_docker_compose("test-team-a", agents_a)
-        compose2 = generate_docker_compose("test-team-b", agents_b)
-        assert len(compose1["services"]) == len(compose2["services"])
-        svc_names = list(compose1["services"].keys())
-        assert svc_names == list(compose2["services"].keys())
-
-    def test_cpu_memory_resource_overrides(self):
-        """Resource overrides should only change deploy.resources.limits."""
-        agents = ["orchestrator", "reviewer"]
-        compose_default = generate_docker_compose("t", agents)
-        compose_custom = generate_docker_compose("t", agents, resources={
-            "default_cpu": "2.0",
-            "default_memory": "2G",
-        })
-        for svc_name in agents:
-            default_res = compose_default["services"][svc_name]["deploy"]["resources"]["limits"]
-            custom_res = compose_custom["services"][svc_name]["deploy"]["resources"]["limits"]
-            assert default_res["cpus"] == "0.5"
-            assert custom_res["cpus"] == "2.0"
-            assert default_res["memory"] == "512M"
-            assert custom_res["memory"] == "2G"
-            for key in ["image", "cap_drop", "security_opt", "read_only"]:
-                assert compose_default["services"][svc_name][key] == compose_custom["services"][svc_name][key]

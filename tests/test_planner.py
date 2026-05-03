@@ -4,7 +4,7 @@ Tests: Planner recommendations.
 
 import pytest
 
-from hermes_fleet.planner import recommend_team
+from hermes_agency.planner import recommend_team
 
 # (goal, expected_team_id)
 KEYWORD_TEAMS = [

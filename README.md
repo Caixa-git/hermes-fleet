@@ -1,245 +1,107 @@
-# Hermes Fleet
+# Hermes Agency
 
-**A secure team bootstrapper for isolated Hermes Agent fleets.**
+**From goal to team. Where Kanban meets agency-agents.**
 
-> **Status**: v0.1 — Generator and Validator. Generates configuration only. Does not execute agents or require an existing Hermes installation.
-
-Prompt is not a permission boundary. Container is.
-
-```
-  ╔═══════════════════════════════════╗
-  ║  Isolation.                       ║
-  ║                                   ║
-  ║  Every agent has its own room.    ║
-  ║  Only the orchestra conductor     ║
-  ║  holds all the keys.              ║
-  ╚═══════════════════════════════════╝
-```
-
-Hermes Fleet helps you turn a vague goal into a safe, role-based Hermes Agent team. Instead of manually wiring profiles, SOUL.md files, Kanban templates, Docker containers, workspaces, and permissions, Hermes Fleet generates a secure team scaffold with least-privilege defaults.
-
----
-
-## The Problem
-
-Hermes Agent is powerful, but multi-agent work becomes difficult when:
-
-- Multiple roles share the same memory, workspace, permissions, and secrets.
-- A single long-running agent starts forgetting its role.
-- Handoffs between agents are informal and incomplete.
-- Orchestrators start doing worker work.
-- Reviewers accidentally become implementers.
-- Permissions are described in prompts but not actually enforced.
-
-A role prompt is not enough. The runtime must make unsafe behavior impossible or at least detectable.
-
----
-
-## The Solution
-
-Hermes Fleet generates a complete, isolated team configuration from a single goal description:
-
-```bash
-hermes-fleet plan "Build a medium-sized SaaS MVP"
-hermes-fleet generate
-hermes-fleet test safe-defaults
-```
-
-Each agent gets:
-- Its own **SOUL.md** — identity declaration and role boundaries
-- Its own **policy.yaml** — machine-readable, enforceable permissions
-- Its own **Docker container** — filesystem, network, and secret isolation
-- Its own **worktree** — no accidental file conflicts
-- Its own **Kanban handoff contracts** — structured, validated handoffs
-
----
-
-## What v0.1 Does
-
-v0.1 is a **local CLI tool** that generates team configuration as text files. It is a generator and validator — nothing more.
-
-| Capability | Status |
-|-----------|--------|
-| Read a goal and recommend a team preset | Done |
-| Generate SOUL.md for each agent | Done |
-| Generate policy.yaml for each agent | Done |
-| Generate Docker Compose with security defaults | Done |
-| Generate Kanban handoff templates | Done |
-| Validate generated config against 22 safe-default rules | Done |
-| Deterministic output (same input → same output) | Done |
-| Run Docker containers | Not yet (v0.3) |
-| Execute Hermes agents | Not yet (v0.3) |
-| Validate handoffs at runtime | Not yet (v0.4) |
-| AI-powered team recommendation | Not yet (v0.3 optional) |
-
----
-
-## Single Pillar: Isolation
-
-Hermes Fleet is built on one non-negotiable principle: **every agent is isolated**.
-
-No agent can see another agent's memory, files, network, or secrets. No agent can talk to another agent directly. Even the user cannot talk to sub-agents directly. Every message, every piece of data, every network request must pass through **the orchestrator** — the sole entity that holds all the keys.
-
-From this single pillar, four facets emerge:
-
-### Facet 1: Role — Who lives in each room
-
-Every agent's identity is traceable to an upstream role specification (agency-agents). The compiler preserves the original spec — no AI summarization, no drift. Provenance metadata is recorded in every SOUL.md.
-
-*Key question: "Who is this agent, and what should it do?"*
-
-### Facet 2: Boundary — The walls of the room
-
-Role identity is aspirational; isolation is enforced. policy.yaml defines filesystem, network, secret, and command permissions. Docker enforces with `cap_drop`, `read_only`, `network: none`. Each agent gets its own container, its own memory volume, its own workspace.
-
-*Key question: "What can this agent do, and what is off-limits?"*
-
-### Facet 3: Completion — How work passes between rooms
-
-Handoff is a role-specific contract, not a generic message. Each role defines its own required outputs, validation rules, and completion gates. The receiving agent must be able to continue from the handoff alone. All handoffs pass through the orchestrator.
-
-Done = output + verification + record + handoff.
-
-*Key question: "Is the work really done, and can the next person pick it up?"*
-
-### Facet 4: Orchestrator — The only one who opens doors
-
-The orchestrator is not a separate pillar. It is the runtime agent that can cross isolation boundaries — the sole communication channel between any two entities in the fleet.
-
-- It assigns tasks to sub-agents. They execute in isolation.
-- It receives completed work. Verifies. Aggregates.
-- It reports to the user. The user approves or redirects.
-- It reassigns. The cycle continues.
-- If a sub-agent needs temporary network access, it requests the orchestrator. The orchestrator asks the user. User grants a time-limited exception. Isolation is restored automatically on expiry.
+> **Status**: v0.1 — Pre-alpha. Goal-to-team composition only.
+> Execution is delegated entirely to [Hermes Agent Kanban](https://github.com/NousResearch/hermes-agent).
 
 ```
-Agent ──task complete──→ Orchestrator (verify + aggregate)
-                           Orchestrator ──report──→ User
-                           User ──approve or redirect──→ Orchestrator
-                           Orchestrator ──next task or reassign──→ Agent
+Goal ──→ Hermes Agency ──→ Team + Roles + Task DAG
+                                   │
+                                   ▼
+                          Hermes Kanban (execution)
 ```
 
-- Sub-agents never contact the user directly. The orchestrator is the sole intermediary.
-- No per-agent approval gates. No approval thresholds.
-- Policy violations are handled by policy.yaml enforcement, not by user approval.
+---
 
-*Key question: "Who manages the fleet, and how does the user stay in control?"*
+## What This Is
 
-The answer: the orchestrator manages. The user controls. They are never the same entity.
+**Hermes Agency** accepts a goal and produces a team — with roles, policies, and a task graph — ready for execution by Hermes Agent Kanban.
+
+It sits exactly at the intersection of two projects:
+
+| | Project | What it provides |
+|---|---|---|
+| **Kanban** | [Hermes Agent](https://github.com/NousResearch/hermes-agent) | Multi-agent execution runtime. Task state machine, dispatcher, worker pool, workspace management, failure handling, circuit breakers. |
+| **Agency** | [agency-agents](https://github.com/msitarzewski/agency-agents) | Upstream role specifications. Occupational definitions for every agent type — identity, mission, permitted work, boundaries. |
+
+Hermes Agency is the bridge between them: it reads goal language, composes the right team from agency-agents roles, generates SOUL.md identity and policy.yaml boundaries per role, and outputs a Kanban task DAG ready for execution.
 
 ---
 
-## What This Project Is
+## Why Not Just Use Kanban Directly?
 
-A secure team bootstrapper and configuration generator for role-based
-Hermes Agent fleets. It generates team configurations with least-privilege
-defaults so that human or AI operators can bootstrap safe multi-agent
-work without manually wiring every detail.
+Kanban is excellent at executing tasks — it manages states, dependencies, workspaces, dispatcher routing, and failure recovery. But Kanban has no concept of **team composition**. It doesn't know which roles should work together on a SaaS app versus a security audit. It doesn't generate SOUL.md identity declarations or policy.yaml permission boundaries.
 
-## What This Project Is Not (v0.1)
+agency-agents has the role definitions — detailed, proven occupational specs — but no execution layer. A role spec on its own does nothing.
 
-- Not a replacement for Hermes Agent
-- Not a new LLM agent runtime or model provider
-- Not a full dashboard or Kanban application
-- Not a deployment or CI/CD platform
-- Not a production secret manager
-- Not a system that executes real long-running agents
-- Not an AI that reads the latest research and auto-updates team strategy
-- Not a Docker container orchestrator (generates Compose files only)
+Hermes Agency closes the gap:
 
----
+- **planner** — goal analysis + team composition (which roles, which order)
+- **generator** — SOUL.md (identity) + policy.yaml (boundaries) per role
+- **bridge** — task DAG → Kanban API calls (`kanban_create`)
 
-## Roadmap
-
-| Version | Focus |
-|---------|-------|
-| **v0.1** | Generator and validator. Team/role presets, safe-defaults checks. |
-| **v0.2** | Contract-driven composition. Pydantic schemas, dual lock layers, agency-agents import. |
-| **v0.3** (current) | Container lifecycle: up/down/status/logs/restart. Runtime validation. |
-| **v0.4** | Agent runtime. Token budgets, agent lifecycle state machine, handoff contract runtime. |
-| **v0.5** | Orchestrator integration. Task assignment, user approval gate, sub-agent autonomy. |
-| **v0.6** | Policy enforcement. Runtime handoff validation, violation detection, recovery. |
-| **v0.7** | Kanban runtime. Fleet mode with repo ingestion, task tracking, handoff visualization. |
-| **v1.0** | Production-ready: audit logging, secret management, CI/CD, web dashboard. |
-
-See [ROADMAP.md](./ROADMAP.md) for the full development plan.
+Everything after that is pure Kanban.
 
 ---
 
 ## Quickstart
 
 ```bash
-# Install (from source)
+# Install from source
 pip install -e .
 
-# Create project configuration
-hermes-fleet init
+# Plan a team for your goal
+hermes-agency plan "Build a SaaS MVP with subscription billing"
 
-# Describe your goal and get a team recommendation
-hermes-fleet plan "Build a medium-sized SaaS MVP with subscription billing"
-
-# Generate all agent configurations
-hermes-fleet generate
-
-# Validate safe defaults
-hermes-fleet test safe-defaults
-```
-
-Generated output goes to `.fleet/generated/` in your project directory. Nothing touches `~/.hermes` or any global Hermes configuration.
-
----
-
-## Example Flow
-
-```bash
-$ hermes-fleet plan "Build a medium-sized SaaS MVP"
-Recommended team: saas-medium
-  - orchestrator, product-manager, ux-designer, frontend-developer
-  - backend-developer, database-architect, qa-tester
-  - security-reviewer, technical-writer
-
-$ hermes-fleet generate --force
-  [write] .fleet/generated/agents/orchestrator/SOUL.md
-  [write] .fleet/generated/agents/orchestrator/policy.yaml
-  ... (27 files total)
-
-$ hermes-fleet test safe-defaults --verbose
-Safe-defaults validation results:
-  Passed: 21  Failed: 0  Skipped: 1
-All safe-defaults checks PASSED.
+# Apply the plan to Kanban (creates tasks with roles + policies)
+hermes-agency apply
 ```
 
 ---
 
-## Architecture
+## CLI
 
-See [ARCHITECTURE.md](./ARCHITECTURE.md) for the system design. Key layers:
+```
+hermes-agency init          Create project configuration
+hermes-agency plan <goal>   Analyze goal → recommend team + task DAG
+hermes-agency apply         Register plan with Hermes Kanban
+```
 
-- **Definition Layer**: Team/role YAML presets + lock files
-- **Schema Layer**: Pydantic models for all data structures
-- **Planner**: Keyword-based team recommender (foundation-bound)
-- **Generator**: Renders SOUL.md, policy.yaml, Docker Compose
-- **Validator**: 21 safe-defaults checks
-- **CLI**: Typer-based interface
+---
+
+## Project Dependencies
+
+This project builds on and acknowledges two upstream projects:
+
+| Dependency | License | Source |
+|---|---|---|
+| **Hermes Agent** (Kanban) | MIT | [github.com/NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent) |
+| **agency-agents** (Role specs) | MIT | [github.com/msitarzewski/agency-agents](https://github.com/msitarzewski/agency-agents) |
+
+Both are MIT-licensed. This project uses MIT as well. See [LICENSE](./LICENSE) for the full text including both copyright notices.
 
 ---
 
 ## Design Foundations
 
-See [DESIGN_FOUNDATIONS.md](./DESIGN_FOUNDATIONS.md) for the four academic
-and standards-based sources that underpin the framework's design principles.
+The team composition logic in Hermes Agency is grounded in academic research:
+
+1. **Agent-Oriented Planning** — Wooldridge, Jennings, Rao, Georgeff (solvability, completeness, non-redundancy)
+2. **LLM-based Multi-Agent Systems Survey** — Profile, perception, self-action, mutual interaction, evolution
+3. **NIST RBAC / Sandhu "Role-Based Access Control Models"** — IEEE Computer, 1996 (least privilege, separation of duties)
+4. **Contract Net Protocol** — Smith, IEEE Trans. Computers, 1980 (task contracts, structured handoff)
+
+See [DESIGN_FOUNDATIONS.md](./DESIGN_FOUNDATIONS.md) for detailed references.
+
+---
+
+## Where This Came From
+
+Hermes Agency replaces [Hermes Fleet](https://github.com/Caixa-git/hermes-fleet) (v0.1–v0.4), which attempted to build an independent container orchestration layer for multi-agent work. That approach duplicated what Kanban already does. Hermes Agency takes the opposite approach: delegate execution to Kanban entirely, focus exclusively on what Kanban lacks — goal-to-team composition with role-pure identity injection.
 
 ---
 
 ## License
 
-MIT
-
----
-
-## About the Author
-
-Hi, I'm **Caixa-git** — a Korean developer building secure multi-agent systems.
-I'm currently open to new opportunities.
-
-If you'd like to reach out: **wjsfund@gmail.com**
+MIT. Includes copyright notices from Nous Research (Hermes Agent) and AgentLand Contributors (agency-agents). See [LICENSE](./LICENSE).

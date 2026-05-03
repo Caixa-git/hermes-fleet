@@ -1,59 +1,91 @@
-"""
-Generator — assemble and render all agent configurations.
+"""Generator — assemble and render plan output.
+
+Generates SOUL.md (identity) and policy.yaml (boundaries) per agent role.
+Does NOT generate Docker Compose, Kanban templates, or any execution artifacts.
 """
 
 from pathlib import Path
 
 import yaml
 
-from hermes_fleet.policy import compose_policy
-from hermes_fleet.docker_compose import generate_docker_compose
-from hermes_fleet.kanban import generate_kanban_templates
-from hermes_fleet.teams import load_role
+from hermes_agency.policy import compose_policy
+from hermes_agency.teams import load_role
+from hermes_agency.planner import plan_to_dag
 
 
-
-def generate_fleet(
-    project_dir: Path,
+def generate_plan_output(
+    goal: str,
     team_id: str,
     team_def: dict,
-    force: bool = False,
-    resources: dict[str, dict[str, str]] | None = None,
-    network_policy: dict | None = None,
-    token_budget: dict | None = None,
-    agent_states: dict[str, dict[str, str]] | None = None,
-    image: str = "nousresearch/hermes-agent:latest",
-) -> Path:
+    fleet_dir: Path | None = None,
+) -> dict:
+    """Generate a complete plan output dict.
+
+    Returns a dict with team info, agent configs, and task DAG,
+    ready to be serialized as YAML.
     """
-    Generate all fleet configuration files.
-
-    Args:
-        project_dir: Project root directory.
-        team_id: Team preset ID.
-        team_def: Team definition dict.
-        force: Overwrite existing files.
-        resources: Optional resource overrides (from fleet.yaml).
-        network_policy: Optional network policy (from fleet.yaml).
-        token_budget: Optional token budget (from fleet.yaml).
-        agent_states: Optional per-agent state (from fleet.yaml).
-        image: Docker image for agents (default: nousresearch/hermes-agent:latest).
-
-    Returns:
-        Path to the generated output directory.
-    """
-    output_dir = project_dir / ".fleet" / "generated"
-    agents_dir = output_dir / "agents"
-    kanban_dir = output_dir / "kanban"
-
-    for d in [output_dir, agents_dir, kanban_dir]:
-        d.mkdir(parents=True, exist_ok=True)
+    from hermes_agency.contracts import handoff_from_dict
 
     agents = team_def.get("agents", [])
-    # Note: team_def may also contain 'optional_agents' (dict of agent_id: bool).
-    # These are reserved for v0.2+ -- the generator does not produce configs for
-    # disabled optional agents in v0.1. See SPEC.md section 4.2.
+    dag = plan_to_dag(goal, team_id, team_def)
 
-    # --- Generate per-agent configs ---
+    # Build agent configs
+    agent_configs = []
+    handoff_contracts = []
+
+    for agent_id in agents:
+        role_data = load_role(agent_id) or {}
+        policy = compose_policy(agent_id)
+        soul_md = _render_soul_md(agent_id, role_data, policy)
+
+        agent_configs.append({
+            "role_id": agent_id,
+            "name": role_data.get("name", agent_id.replace("-", " ").title()),
+            "description": role_data.get("description", ""),
+            "permission_preset": role_data.get("permission_preset", "repo_readonly"),
+            "soul_md": soul_md,
+            "policy_yaml": policy,
+        })
+
+        # Handoff contract
+        handoff = role_data.get("handoff", {})
+        if handoff:
+            handoff_contracts.append({
+                "agent": agent_id,
+                "required_outputs": handoff.get("required_outputs", []),
+                "required_input": role_data.get("handoff_required_inputs", []),
+            })
+
+    plan_output = {
+        "plan": {
+            "goal": goal,
+            "team_id": team_id,
+            "team_name": team_def.get("name", team_id),
+            "description": team_def.get("description", ""),
+            "agents": agent_configs,
+            "task_dag": dag,
+            "handoff_contracts": handoff_contracts,
+        }
+    }
+
+    return plan_output
+
+
+def generate_agent_files(
+    team_id: str,
+    team_def: dict,
+    output_dir: Path,
+    force: bool = False,
+) -> Path:
+    """Generate SOUL.md and policy.yaml files for each agent.
+
+    This is a file-based output (for human review or git tracking).
+    Kanban-integrated output uses generate_plan_output() instead.
+    """
+    agents_dir = output_dir / "agents"
+    agents_dir.mkdir(parents=True, exist_ok=True)
+
+    agents = team_def.get("agents", [])
     for agent_id in agents:
         agent_dir = agents_dir / agent_id
         agent_dir.mkdir(parents=True, exist_ok=True)
@@ -61,39 +93,17 @@ def generate_fleet(
         policy = compose_policy(agent_id)
         role_data = load_role(agent_id) or {}
 
-        # Generate SOUL.md
+        # SOUL.md
         soul_path = agent_dir / "SOUL.md"
         soul_content = _render_soul_md(agent_id, role_data, policy)
         _write_if_not_exists(soul_path, soul_content, force)
 
-        # Generate policy.yaml
+        # policy.yaml
         policy_path = agent_dir / "policy.yaml"
         policy_content = yaml.dump(policy, default_flow_style=False)
         _write_if_not_exists(policy_path, policy_content, force)
 
-    # --- Generate Docker Compose ---
-    compose = generate_docker_compose(team_id, agents, resources=resources,
-                                           network_policy=network_policy,
-                                           token_budget=token_budget,
-                                           agent_states=agent_states,
-                                           image=image)
-    compose_path = output_dir / "docker-compose.generated.yaml"
-    compose_content = yaml.dump(compose, default_flow_style=False)
-    _write_if_not_exists(compose_path, compose_content, force)
-
-    # --- Generate Kanban templates ---
-    kanban_templates = generate_kanban_templates()
-
-    task_path = kanban_dir / "task-template.md"
-    _write_if_not_exists(task_path, kanban_templates["task-template"], force)
-
-    handoff_path = kanban_dir / "handoff-template.md"
-    _write_if_not_exists(handoff_path, kanban_templates["handoff-template"], force)
-
-    gates_path = kanban_dir / "completion-gates.yaml"
-    _write_if_not_exists(gates_path, kanban_templates["completion-gates"], force)
-
-    return output_dir
+    return agents_dir
 
 
 def _render_soul_md(agent_id: str, role_data: dict, policy: dict) -> str:

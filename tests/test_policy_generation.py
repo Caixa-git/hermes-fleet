@@ -7,8 +7,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from hermes_fleet.policy import compose_policy, list_presets
-from hermes_fleet.teams import load_role, load_team
+from hermes_agency.policy import compose_policy, list_presets
+from hermes_agency.teams import load_role, load_team
 
 ROLES_DIR = Path(__file__).resolve().parent.parent / "presets" / "roles"
 

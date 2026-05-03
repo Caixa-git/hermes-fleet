@@ -8,7 +8,7 @@ with pure data structures.
 import pytest
 from pydantic import ValidationError
 
-from hermes_fleet.contracts import (
+from hermes_agency.contracts import (
     CheckResult,
     HandoffContract,
     RoleContract,
@@ -415,7 +415,7 @@ class TestHandoffRequiredFieldsValidation:
 
     def test_handoff_with_required_fields_passes(self):
         """Handoff contract with required_fields should pass validation."""
-        from hermes_fleet.contracts import (
+        from hermes_agency.contracts import (
             HandoffContract,
             RoleContract,
             validate_contract_cross_references,
@@ -442,7 +442,7 @@ class TestHandoffRequiredFieldsValidation:
 
     def test_handoff_without_required_fields_fails(self):
         """Handoff contract without required_fields should fail validation."""
-        from hermes_fleet.contracts import (
+        from hermes_agency.contracts import (
             HandoffContract,
             RoleContract,
             validate_contract_cross_references,
@@ -477,7 +477,7 @@ class TestFleetConfigContract:
     """FleetConfigContract schema validation."""
 
     def test_valid_config(self):
-        from hermes_fleet.contracts import fleet_config_from_dict
+        from hermes_agency.contracts import fleet_config_from_dict
         data = {
             "fleet_version": "0.1.0",
             "name": "test-fleet",
@@ -489,7 +489,7 @@ class TestFleetConfigContract:
         assert cfg.team == "general-dev"
 
     def test_default_output_dir(self):
-        from hermes_fleet.contracts import fleet_config_from_dict
+        from hermes_agency.contracts import fleet_config_from_dict
         data = {
             "fleet_version": "0.1.0",
             "name": "test",
@@ -499,7 +499,7 @@ class TestFleetConfigContract:
         assert cfg.output_dir == ".fleet/generated"
 
     def test_empty_fleet_version_fails(self):
-        from hermes_fleet.contracts import fleet_config_from_dict
+        from hermes_agency.contracts import fleet_config_from_dict
         data = {
             "fleet_version": "",
             "name": "test",
@@ -518,7 +518,7 @@ class TestPermissionPresetContract:
     """PermissionPresetContract schema validation."""
 
     def test_valid_preset(self):
-        from hermes_fleet.contracts import permission_preset_from_dict
+        from hermes_agency.contracts import permission_preset_from_dict
         data = {
             "preset_id": "test_preset",
             "workspace": "readonly",
@@ -531,7 +531,7 @@ class TestPermissionPresetContract:
         assert preset.workspace == "readonly"
 
     def test_empty_id_fails(self):
-        from hermes_fleet.contracts import permission_preset_from_dict
+        from hermes_agency.contracts import permission_preset_from_dict
         with pytest.raises(ValidationError):
             permission_preset_from_dict({"preset_id": "  "})
 
@@ -545,7 +545,7 @@ class TestHandoffFromDict:
     """handoff_from_dict conversion and validation."""
 
     def test_basic_conversion(self):
-        from hermes_fleet.contracts import handoff_from_dict
+        from hermes_agency.contracts import handoff_from_dict
         data = {
             "id": "test-handoff",
             "from_roles": ["developer"],
@@ -556,7 +556,7 @@ class TestHandoffFromDict:
         assert hc.id == "test-handoff"
 
     def test_with_validation_rules(self):
-        from hermes_fleet.contracts import handoff_from_dict
+        from hermes_agency.contracts import handoff_from_dict
         data = {
             "id": "test",
             "from_roles": ["dev"],
@@ -572,7 +572,7 @@ class TestHandoffFromDict:
         assert hc.completion_gate_required == ["gate1"]
 
     def test_empty_id_fails(self):
-        from hermes_fleet.contracts import handoff_from_dict
+        from hermes_agency.contracts import handoff_from_dict
         with pytest.raises(ValidationError):
             handoff_from_dict({"id": "", "from_roles": [], "allowed_next_roles": [], "required_fields": []})
 

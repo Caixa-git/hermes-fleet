@@ -2,7 +2,7 @@
 Planner — recommend a team based on a textual goal description.
 """
 
-from hermes_fleet.teams import load_team
+from hermes_agency.teams import load_team
 
 
 # Keyword → team mapping for v0.1 heuristic
@@ -85,3 +85,80 @@ def recommend_team(goal: str) -> tuple[str, dict]:
     team_id = "general-dev"
     team_def = load_team(team_id)
     return team_id, team_def or {"name": "General Development Team", "description": "", "agents": []}
+
+
+def plan_to_dag(goal: str, team_id: str, team_def: dict) -> list[dict]:
+    """Generate a task DAG from a team definition.
+
+    Returns ordered list of steps with assignee, title, description, parents.
+    The orchestator is always the first step (planning) and last step
+    (delivery verification). Intermediate steps are ordered by role convention.
+    """
+    from hermes_agency.teams import load_role
+
+    agents = team_def.get("agents", [])
+    dag = []
+    step_counter = 0
+
+    # Step 1: Orchestrator assigns work
+    if "orchestrator" in agents:
+        step_counter += 1
+        dag.append({
+            "step": f"step_{step_counter}",
+            "assignee": "orchestrator",
+            "title": f"Plan and assign work for: {goal[:80]}",
+            "description": "Analyze goal, decompose into tasks, assign to agents via Kanban.",
+            "parents": [],
+        })
+
+    # Intermediate steps: non-orchestrator agents in conventional order
+    role_order = _get_role_order()
+    for role_id in role_order:
+        if role_id == "orchestrator":
+            continue
+        if role_id not in agents:
+            continue
+        step_counter += 1
+        role_data = load_role(role_id) or {}
+        name = role_data.get("name", role_id)
+        mission = role_data.get("mission", "")
+        dag.append({
+            "step": f"step_{step_counter}",
+            "assignee": role_id,
+            "title": f"{name}: {mission[:120] if mission else 'Execute assigned work'}",
+            "description": (
+                f"Role: {name}. "
+                f"{'Mission: ' + mission[:200] if mission else ''}"
+            ),
+            "parents": [f"step_{step_counter - 1}"],
+        })
+
+    # Final step: Orchestrator verifies delivery
+    if "orchestrator" in agents:
+        step_counter += 1
+        dag.append({
+            "step": f"step_{step_counter}",
+            "assignee": "orchestrator",
+            "title": "Verify delivery and report to user",
+            "description": "Aggregate all agent outputs, verify against goal, present summary to user.",
+            "parents": [f"step_{step_counter - 1}"],
+        })
+
+    return dag
+
+
+def _get_role_order() -> list[str]:
+    """Conventional role execution order within a team pipeline."""
+    return [
+        "product-manager",
+        "ux-designer",
+        "fullstack-developer",
+        "frontend-developer",
+        "backend-developer",
+        "database-architect",
+        "qa-tester",
+        "security-reviewer",
+        "deployer",
+        "reviewer",
+        "technical-writer",
+    ]

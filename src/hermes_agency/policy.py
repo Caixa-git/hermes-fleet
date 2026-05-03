@@ -7,7 +7,7 @@ from typing import Dict
 
 import yaml
 
-from hermes_fleet.teams import load_role
+from hermes_agency.teams import load_role
 
 
 def _get_permissions_dir() -> Path:
@@ -17,7 +17,7 @@ def _get_permissions_dir() -> Path:
 
 def _load_permission_presets() -> Dict[str, dict]:
     """Load all permission presets from presets/permissions/*.yaml."""
-    from hermes_fleet.contracts import ContractValidationError, permission_preset_from_dict
+    from hermes_agency.contracts import ContractValidationError, permission_preset_from_dict
 
     presets_dir = _get_permissions_dir()
     presets: Dict[str, dict] = {}

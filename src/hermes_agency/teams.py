@@ -7,7 +7,7 @@ from typing import Optional
 
 import yaml
 
-from hermes_fleet.contracts import (
+from hermes_agency.contracts import (
     handoff_from_dict,
     role_from_dict,
     team_from_dict,
