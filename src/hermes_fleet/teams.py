@@ -8,9 +8,7 @@ from typing import Optional
 import yaml
 
 from hermes_fleet.contracts import (
-    ContractValidationError,
     handoff_from_dict,
-    permission_preset_from_dict,
     role_from_dict,
     team_from_dict,
 )
@@ -84,23 +82,3 @@ def list_available_handoffs() -> list[str]:
     return sorted(
         f.stem for f in handoffs_dir.glob("*.yaml") if f.stem != "__init__"
     )
-
-
-def load_all_handoffs() -> dict[str, dict]:
-    """Load all handoff contracts as {id: data}."""
-    result: dict[str, dict] = {}
-    for hid in list_available_handoffs():
-        data = load_handoff(hid)
-        if data is not None:
-            result[hid] = data
-    return result
-
-
-def load_all_permission_presets() -> dict[str, dict]:
-    """Load all permission presets as {id: data}."""
-    result: dict[str, dict] = {}
-    for pid in list_available_permission_presets():
-        data = load_permission_preset(pid)
-        if data is not None:
-            result[pid] = data
-    return result

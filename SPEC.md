@@ -476,7 +476,6 @@ hermes-fleet/
 ├── ARCHITECTURE.md
 ├── ROADMAP.md
 ├── SPEC.md
-├── RESEARCH_NOTES.md
 ├── pyproject.toml
 ├── src/
 │   └── hermes_fleet/
@@ -520,10 +519,10 @@ hermes-fleet/
 │       ├── growth-marketer.yaml
 │       └── customer-support-specialist.yaml
 ├── tests/
-│   ├── __init__.py
 │   ├── test_checks.py
 │   ├── test_cli_generate.py
 │   ├── test_contract_schemas.py
+│   ├── test_deterministic_allocation.py
 │   ├── test_docker_compose_generation.py
 │   ├── test_end_to_end.py
 │   ├── test_kanban_templates.py
@@ -532,9 +531,7 @@ hermes-fleet/
 │   ├── test_policy_generation.py
 │   ├── test_safe_defaults.py
 │   ├── test_soul_generation.py
-│   ├── test_team_presets.py
-│   └── test_teams.py
-```
+│   └── test_team_presets.py
 
 ---
 
@@ -595,7 +592,7 @@ Designs beyond v0.1 are maintained as separate documents:
 - **`docs/AGENCY_AGENTS_UPDATE_MODEL.md`** — Two lock layers, agency-agents import protocol (v0.2)
 - **`REPO_FLEET_MODE.md`** — GitHub integration, fleet mode for existing repos (v0.5+)
 
-The following v0.2 designs from `docs/CONTRACT_SCHEMAS.md` are now implemented in v0.1/v0.2:
+The following v0.2 designs are now implemented in v0.1/v0.2:
 - TeamContract, RoleContract, PermissionPresetContract, HandoffContract — all in `src/hermes_fleet/contracts.py`
 - Cross-reference validation in `validate` command
 - Handoff YAML presets in `presets/handoffs/`

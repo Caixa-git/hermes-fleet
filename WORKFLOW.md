@@ -484,7 +484,7 @@ acceptable.
 **Option B — Split by layer (cleaner for bisect):**
 
 ```bash
-git add README.md ARCHITECTURE.md ROADMAP.md SPEC.md RESEARCH_NOTES.md \
+git add README.md ARCHITECTURE.md ROADMAP.md SPEC.md \
    DESIGN_FOUNDATIONS.md WORKFLOW.md
 git commit -m "docs: add design documents and workflow guide for v0.1"
 

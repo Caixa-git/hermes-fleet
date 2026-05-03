@@ -2,8 +2,6 @@
 Docker Compose service configuration generation.
 """
 
-from typing import List
-
 from hermes_fleet.policy import compose_policy
 
 
@@ -12,22 +10,18 @@ def _sanitize_name(name: str) -> str:
     return name.replace("_", "-").replace(".", "-").lower()
 
 
-def _select_network(agent_id: str, policy: dict) -> List[str]:
+def _select_network(policy: dict) -> list[str]:
     """Select Docker Compose networks based on policy."""
     network_mode = policy.get("network", {}).get("mode", "none")
-    if network_mode == "control_plane_only":
-        return ["fleet-control-plane"]
-    elif network_mode == "package_registry":
+    if network_mode in ("control_plane_only", "package_registry"):
         return ["fleet-control-plane"]
     elif network_mode == "web_readonly":
         return ["fleet-web"]
-    elif network_mode == "none":
-        return ["fleet-no-net"]
     else:
         return ["fleet-no-net"]
 
 
-def generate_docker_compose(team_id: str, agents: List[str]) -> dict:
+def generate_docker_compose(team_id: str, agents: list[str]) -> dict:
     """
     Generate a complete Docker Compose dict for a team.
 
@@ -71,7 +65,7 @@ def generate_docker_compose(team_id: str, agents: List[str]) -> dict:
             "environment": [
                 f"HERMES_PROFILE={agent_id}",
             ],
-            "networks": _select_network(agent_id, policy),
+            "networks": _select_network(policy),
             "deploy": {
                 "resources": {
                     "limits": {

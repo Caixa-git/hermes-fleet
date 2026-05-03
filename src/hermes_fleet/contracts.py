@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
 from pydantic import BaseModel, field_validator
@@ -255,25 +254,6 @@ def handoff_from_dict(data: dict[str, Any]) -> HandoffContract:
     )
 
 
-# ── Team Proposal ──────────────────────────────────────────────────────────────
-
-
-class TeamProposal(BaseModel):
-    """Contract for the Planner/AI output (v0.2+)."""
-
-    goal: str
-    recommended_team_id: str
-    rationale: str
-    customizations: dict[str, Any] = {}
-
-    @field_validator("recommended_team_id")
-    @classmethod
-    def team_id_not_empty(cls, v: str) -> str:
-        if not v.strip():
-            raise ValueError("recommended_team_id must not be empty")
-        return v.strip()
-
-
 # ── Cross-Reference Validation ─────────────────────────────────────────────────
 
 
@@ -359,7 +339,7 @@ def validate_contract_cross_references(
     # Role → Permission Preset references
     for role_id, role in roles_dict.items():
         check_name = f"role:{role_id}.preset:{role.permission_preset}"
-        if role.permission_preset in preset_ids | {"__builtin__"}:
+        if role.permission_preset in preset_ids:
             results.append(CheckResult("passed", check_name))
         else:
             results.append(

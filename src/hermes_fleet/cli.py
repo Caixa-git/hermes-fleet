@@ -9,9 +9,11 @@ Commands:
 """
 
 from pathlib import Path
+from datetime import datetime
 from typing import Optional
 
 import typer
+import yaml
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -62,7 +64,6 @@ def init(
             "team": "general-dev",
             "output_dir": ".fleet/generated",
         }
-        import yaml
 
         with open(fleet_yaml_path, "w") as f:
             yaml.dump(default_config, f, default_flow_style=False)
@@ -79,10 +80,9 @@ def init(
     # Create lock files
     foundation_lock = fleet_dir / "foundation.lock.yaml"
     agency_lock = fleet_dir / "agency.lock.yaml"
-    today = __import__("datetime").datetime.now().strftime("%Y-%m-%d")
+    today = datetime.now().strftime("%Y-%m-%d")
 
     if not foundation_lock.exists():
-        import yaml
         lock_data = {
             "foundation_version": 1,
             "sources": [
@@ -97,7 +97,6 @@ def init(
         console.print(f"  Created: {foundation_lock}")
 
     if not agency_lock.exists():
-        import yaml
         lock_data = {
             "agency_version": 1,
             "ref": "v0.1.0",
@@ -193,7 +192,6 @@ def generate(
     ),
 ):
     """Generate all agent configuration files."""
-    import yaml
 
     # Read fleet config
     project_dir = Path.cwd()
@@ -337,7 +335,6 @@ def validate(
     )
 
     # Lock file checks — only if .fleet/ exists (project context)
-    import yaml
     from hermes_fleet.contracts import FoundationLock, AgencyLock
     fleet_dir = _get_fleet_dir(Path.cwd())
 
@@ -392,8 +389,6 @@ def agency_lock(
     ref: str = typer.Argument(..., help="Commit SHA or release tag to lock to"),
 ):
     """Lock agency-agents to a specific ref."""
-    from datetime import datetime
-    import yaml
     fleet_dir = _get_fleet_dir(Path.cwd())
     agency_path = fleet_dir / "agency.lock.yaml"
 
