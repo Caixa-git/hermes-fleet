@@ -189,6 +189,18 @@ def generate(
         )
         raise typer.Exit(1)
 
+    # Cross-reference validation: all agents must have role definitions
+    from hermes_fleet.teams import load_role
+
+    agents = team_def.get("agents", [])
+    missing_roles = [a for a in agents if load_role(a) is None]
+    if missing_roles:
+        console.print(
+            f"[red]✗ Team '{selected_team}' references unknown roles: "
+            f"{', '.join(missing_roles)}[/red]"
+        )
+        raise typer.Exit(1)
+
     # Generate
     output_dir = generate_fleet(
         project_dir=project_dir,
