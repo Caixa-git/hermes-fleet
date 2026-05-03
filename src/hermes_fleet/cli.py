@@ -1,10 +1,10 @@
-"""
-Hermes Fleet CLI — v0.1
+"""Hermes Fleet CLI — v0.1
 
 Commands:
   init              Create local .fleet configuration
   plan <goal>       Recommend a team for a goal
   generate          Generate agent configurations
+  validate          Validate all preset contracts and cross-references
   test safe-defaults  Validate generated configurations
 """
 
@@ -79,6 +79,7 @@ def init(
     console.print(
         "\nNext steps:\n"
         f"  hermes-fleet plan \"<your goal>\"  — Recommend a team\n"
+        f"  hermes-fleet validate            — Validate all preset contracts\n"
         f"  hermes-fleet generate             — Generate agent configs\n"
         f"  hermes-fleet test safe-defaults   — Validate safe defaults"
     )

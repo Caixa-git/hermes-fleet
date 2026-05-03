@@ -151,7 +151,31 @@ Generates:
 - `.fleet/generated/kanban/handoff-template.md`
 - `.fleet/generated/kanban/completion-gates.yaml`
 
-### 3.4 `hermes-fleet test safe-defaults`
+Cross-reference validation during generation:
+- All agents in the team must have corresponding role definitions
+- All role `permission_preset` fields must resolve to known preset files
+
+### 3.4 `hermes-fleet validate`
+
+Validates all preset contracts and cross-references without generating output.
+
+```
+Usage: hermes-fleet validate [OPTIONS]
+
+Options:
+  --verbose, -v  Show all checks including passing
+  --help         Show this message and exit.
+```
+
+Loads all teams, roles, and permission presets, then runs:
+- All team agents have corresponding role contracts
+- All role permission_presets resolve to known presets
+- No duplicate contract IDs across teams and roles
+- (Future) Handoff-to-role references
+
+Returns exit code 0 if all checks pass, 1 if any check fails.
+
+### 3.5 `hermes-fleet test safe-defaults`
 
 Validates generated configuration against safe-default rules.
 
@@ -212,66 +236,55 @@ Each role has:
 - **description**: One-line role description
 - **mission**: What the agent is responsible for
 - **non_goals**: What the agent must not do
+- **permission_preset**: References a preset file in `presets/permissions/` that defines filesystem, network, and secret access. See section 6.
 - **allowed_tasks**: Task types this agent may accept
 - **forbidden_tasks**: Task types this agent must refuse
-- **allowed_workspaces**: Workspace access patterns (full, own_worktree, readonly, none)
-- **allowed_paths**: Glob patterns of writable paths
-- **readonly_paths**: Glob patterns of read-only paths
-- **forbidden_paths**: Glob patterns of inaccessible paths
-- **network_access**: Network policy (none, web_readonly, package_registry, internal, deploy_only)
-- **secret_allowlist**: Environment variable names this agent may access
 - **allowed_commands**: Shell commands this agent may execute
 - **denied_commands**: Shell commands this agent must not execute
-- **handoff_required_outputs**: Fields required when handing off work
-- **completion_gates**: Conditions that must be met before marking complete
+- **handoff** (dict): Completeness contract — what the agent must produce when handing off work
+  - `required_outputs`: List of output types required before handoff
+- **completion_gates** (dict): Conditions that must be met before marking complete
+  - `required`: List of gate names that must pass
+- **allowed_workspaces**, **allowed_paths**, **readonly_paths**, **forbidden_paths**, **network_access**, **secret_allowlist**: These fields are defined in the referenced `permission_preset`, not inline in the role.
 
 ### Role File Format (YAML)
 
 ```yaml
 id: security-reviewer
 name: Security Reviewer
-description: Reviews code and configuration for security vulnerabilities
+description: Reviews code and configuration for security vulnerabilities.
 mission: >
-  Identify security issues, assess risk, and recommend fixes.
-  Do not modify code.
+  Identify security issues, assess risk severity, and recommend fixes.
+  Do not modify code. Do not access secrets. Report findings only.
 non_goals: |
   - Implementation or feature development
   - Deployment or infrastructure changes
   - Product scope decisions
+  - Access to secrets or production credentials
+
+permission_preset: readonly_no_network
 
 allowed_tasks:
   - security_review
   - risk_analysis
   - dependency_review
+  - vulnerability_assessment
 
 forbidden_tasks:
   - implementation
   - deployment
   - product_scope_decision
-
-allowed_workspaces: readonly
-readonly_paths:
-  - repo/**
-
-forbidden_paths:
-  - .env
-  - secrets/**
-  - other-agents/**
-
-network_access: none
-
-secret_allowlist: []
+  - code_modification
 
 allowed_commands:
   - grep
   - rg
   - npm audit
   - pip audit
-  - pytest
 
 denied_commands:
   - git push
-  - npm publish
+  - npm install
   - docker
   - ssh
   - terraform apply
@@ -468,17 +481,26 @@ hermes-fleet/
 ├── src/
 │   └── hermes_fleet/
 │       ├── __init__.py
+│       ├── checks.py
 │       ├── cli.py
-│       ├── planner.py
-│       ├── teams.py
-│       ├── roles.py
-│       ├── schema.py
-│       ├── generator.py
-│       ├── policy.py
+│       ├── contracts.py
 │       ├── docker_compose.py
+│       ├── generator.py
 │       ├── kanban.py
-│       └── safe_defaults.py
+│       ├── planner.py
+│       ├── policy.py
+│       ├── safe_defaults.py
+│       └── teams.py
 ├── presets/
+│   ├── permissions/
+│   │   ├── backend_worktree_rw.yaml
+│   │   ├── docs_rw_repo_ro.yaml
+│   │   ├── frontend_worktree_rw.yaml
+│   │   ├── orchestrator_safe.yaml
+│   │   ├── readonly_no_network.yaml
+│   │   ├── repo_readonly.yaml
+│   │   ├── schema_worktree_rw.yaml
+│   │   └── test_runner.yaml
 │   ├── teams/
 │   │   ├── general-dev.yaml
 │   │   └── saas-medium.yaml
@@ -493,18 +515,25 @@ hermes-fleet/
 │       ├── frontend-developer.yaml
 │       ├── backend-developer.yaml
 │       ├── database-architect.yaml
-│       └── security-reviewer.yaml
+│       ├── security-reviewer.yaml
+│       ├── deployer.yaml
+│       ├── growth-marketer.yaml
+│       └── customer-support-specialist.yaml
 ├── tests/
 │   ├── __init__.py
-│   ├── test_team_presets.py
-│   ├── test_soul_generation.py
-│   ├── test_policy_generation.py
+│   ├── test_checks.py
+│   ├── test_cli_generate.py
+│   ├── test_contract_schemas.py
 │   ├── test_docker_compose_generation.py
+│   ├── test_end_to_end.py
+│   ├── test_kanban_templates.py
+│   ├── test_planner.py
+│   ├── test_policy.py
+│   ├── test_policy_generation.py
 │   ├── test_safe_defaults.py
-│   └── test_kanban_templates.py
-└── examples/
-    ├── general-dev/
-    └── saas-medium/
+│   ├── test_soul_generation.py
+│   ├── test_team_presets.py
+│   └── test_teams.py
 ```
 
 ---
@@ -525,17 +554,17 @@ hermes-fleet/
 
 ## 12. Output Determinism
 
-All generated output must be deterministic for the same input, given the
-same locked foundation and agency refs:
-
-- `foundation.lock.yaml` pins the design foundation sources
-- `agency.lock.yaml` pins the upstream role specification versions
+All generated output must be deterministic for the same input:
 
 - No timestamps in generated files
 - No random UUIDs or hashes unless required for uniqueness
 - Stable ordering of agents in lists
 - Stable ordering of policy fields
 - Stable YAML serialization (consistent key order)
+
+> **Note**: `foundation.lock.yaml` and `agency.lock.yaml` (for pinning foundation
+> sources and upstream role versions) are v0.2+ scope. In v0.1, determinism is
+> achieved through static preset files and sorted rendering alone.
 
 This ensures:
 - Version control diffs are meaningful
