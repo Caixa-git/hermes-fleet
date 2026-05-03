@@ -87,21 +87,37 @@
 
 ---
 
-## v0.3 — Container Lifecycle Management, AI Onboarding, and Preserve Compiler
+## v0.3 — Container Lifecycle Management (Current)
 
-**Goal**: Actually run the generated containers, manage agent lifecycles,
-introduce an optional AI onboarding provider, and implement the
-agency-agents preserve compiler.
-**Strengthens**: Boundary (container lifecycle, volume persistence), Completion (handoff contract runtime, AAP tracking)
+**Goal**: Actually run the generated containers and manage agent lifecycles.
+**Strengthens**: Boundary (container lifecycle, volume persistence)
 
 ### Container Lifecycle
 - `hermes-fleet up` — start the fleet (docker compose up)
 - `hermes-fleet down` — stop the fleet
-- `hermes-fleet status` — check agent health
+- `hermes-fleet status` — check agent health (container-level: running/stopped/crashed)
 - `hermes-fleet logs <agent>` — view agent logs
 - `hermes-fleet restart <agent>` — restart individual agent
 - Container health checks and restart policies
 - Volume persistence management
+
+### Validation
+- `hermes-fleet validate` extended with handoff contract required_fields check:
+  every handoff contract must define at least one required_field
+
+---
+
+## v0.4 — Policy Enforcement, Agent Runtime, and AI Onboarding
+
+**Goal**: Runtime policy enforcement at the container boundary. Agent-level state management (ACTIVE/IDLE). AI onboarding provider for LLM-backed team recommendation.
+**Strengthens**: Boundary (policy enforcer, runtime enforcement), Completion (runtime handoff validation, AI onboarding)
+
+### Token Budget and Agent Runtime
+- fleet.yaml `max_iterations_per_session` field for per-agent token budget
+- Agent lifecycle state machine: CREATED → ACTIVE → IDLE → COMPLETED → ARCHIVED
+- IDLE agents reject messages; orchestrator must wake them explicitly
+- Loop detection: tool-call output entropy monitoring (same input+output patterns trigger alert)
+- Team presets annotated with token consumption class (light/medium/heavy) based on collected data
 
 ### AI Onboarding Provider (Optional)
 - Plugin interface for LLM-backed team recommendation
@@ -114,12 +130,6 @@ agency-agents preserve compiler.
 - The AI is a **foundation-bound planner**: it operates within the
   boundaries of `foundation.lock.yaml` and `agency.lock.yaml`
 
-### agency-agents Preserve Compiler
-- Fetch upstream agency-agents role definitions
-- Compile to fleet Role Contracts with provenance metadata
-- Preserve mode: original spec included verbatim or near-verbatim
-- Role-diff view: show what changed when agency-agents ref is updated
-
 ### Handoff Contract Runtime
 - **Handoff contract validation at handoff time**: when agent A hands off
   to agent B, the handoff contract is checked against the runtime state
@@ -128,13 +138,6 @@ agency-agents preserve compiler.
   rules fail, the handoff is rejected and the orchestrator is notified
 - **from_roles enforcement**: agent A must be in the contract's
   `from_roles` list; agent B must be in `allowed_next_roles`
-
----
-
-## v0.4 — Policy Enforcement, Runtime Handoff, and Recovery
-
-**Goal**: Runtime policy enforcement at the container boundary. Role-specific handoff contracts validated at runtime. Self-healing from violations.
-**Strengthens**: Boundary (policy enforcer, runtime enforcement), Completion (runtime handoff validation, recovery)
 
 ### Policy Enforcement
 - Policy enforcer sidecar per container
