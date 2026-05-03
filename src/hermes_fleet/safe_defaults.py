@@ -225,6 +225,56 @@ def run_safe_defaults_check(generated_dir: Path, verbose: bool = False) -> List[
             return
         r("passed", "Kanban completion gates exist")
 
+    # --- Resource Checks (v0.2+) ---
+    @_check
+    def all_services_have_cpu_limits(r):
+        compose = _load_compose(generated_dir, r)
+        if compose is None:
+            return
+        for svc_name, svc in compose.get("services", {}).items():
+            deploy = svc.get("deploy", {}) or {}
+            resources = deploy.get("resources", {}) or {}
+            limits = resources.get("limits", {}) or {}
+            if not limits.get("cpus"):
+                r("failed", f"Service '{svc_name}' missing CPU limit")
+                return
+        r("passed", "All services have CPU limits")
+
+    @_check
+    def all_services_have_memory_limits(r):
+        compose = _load_compose(generated_dir, r)
+        if compose is None:
+            return
+        for svc_name, svc in compose.get("services", {}).items():
+            deploy = svc.get("deploy", {}) or {}
+            resources = deploy.get("resources", {}) or {}
+            limits = resources.get("limits", {}) or {}
+            if not limits.get("memory"):
+                r("failed", f"Service '{svc_name}' missing memory limit")
+                return
+        r("passed", "All services have memory limits")
+
+    @_check
+    def all_agents_policy_has_task_types(r):
+        agents_dir = generated_dir / "agents"
+        if not agents_dir.exists():
+            r("skipped", "No agents directory")
+            return
+        for agent_dir in agents_dir.iterdir():
+            if not agent_dir.is_dir():
+                continue
+            policy_path = agent_dir / "policy.yaml"
+            if not policy_path.exists():
+                r("skipped", f"No policy.yaml for {agent_dir.name}")
+                continue
+            with open(policy_path) as f:
+                policy = yaml.safe_load(f) or {}
+            task_policy = policy.get("task_policy", {}) or {}
+            if not task_policy.get("allowed_task_types"):
+                r("failed", f"Agent '{agent_dir.name}' has no allowed_task_types in policy")
+                return
+        r("passed", "All agents have task types defined")
+
     # --- Isolation Tests ---
     @_check
     def no_hermes_home_access(r):
@@ -266,6 +316,9 @@ def run_safe_defaults_check(generated_dir: Path, verbose: bool = False) -> List[
         kanban_task_template_exists,
         kanban_handoff_template_exists,
         kanban_completion_gates_exists,
+        all_services_have_cpu_limits,
+        all_services_have_memory_limits,
+        all_agents_policy_has_task_types,
         no_hermes_home_access,
         no_real_secrets_in_output,
     ]

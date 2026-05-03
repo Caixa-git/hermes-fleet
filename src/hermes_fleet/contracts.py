@@ -180,6 +180,7 @@ class FleetConfigContract(BaseModel):
     name: str
     team: str
     output_dir: str = ".fleet/generated"
+    resources: dict[str, dict[str, str]] = {}
 
     @field_validator("fleet_version")
     @classmethod
@@ -196,6 +197,7 @@ def fleet_config_from_dict(data: dict[str, Any]) -> FleetConfigContract:
         name=data.get("name", ""),
         team=data.get("team", ""),
         output_dir=data.get("output_dir", ".fleet/generated"),
+        resources=data.get("resources", {}),
     )
 
 

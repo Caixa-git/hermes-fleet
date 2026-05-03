@@ -21,15 +21,28 @@ def _select_network(policy: dict) -> list[str]:
         return ["fleet-no-net"]
 
 
-def generate_docker_compose(team_id: str, agents: list[str]) -> dict:
+def generate_docker_compose(
+    team_id: str, agents: list[str],
+    resources: dict[str, dict[str, str]] | None = None,
+) -> dict:
     """
     Generate a complete Docker Compose dict for a team.
+
+    Args:
+        team_id: Team preset ID.
+        agents: List of agent IDs.
+        resources: Optional resource overrides from fleet.yaml.
+            Keys: agent_id or 'default_cpu'/'default_memory'.
+            Format: {"orchestrator": {"cpus": "1.0", "memory": "1G"}, "default_cpu": "0.5"}.
 
     Returns a dict ready for YAML serialization.
     """
     services = {}
     networks = _get_network_definitions()
     volumes = {}
+    resources = resources or {}
+    default_cpu = resources.get("default_cpu", "0.5")
+    default_memory = resources.get("default_memory", "512M")
 
     for agent_id in agents:
         policy = compose_policy(agent_id)
@@ -40,6 +53,11 @@ def generate_docker_compose(team_id: str, agents: list[str]) -> dict:
         # Determine read_only status
         workspace_access = policy.get("filesystem", {}).get("writable_paths", [])
         is_read_only = len(workspace_access) == 0
+
+        # Per-agent resource limits (v0.2+)
+        agent_resources = resources.get(agent_id, {}) or {}
+        cpu_limit = agent_resources.get("cpus", default_cpu)
+        mem_limit = agent_resources.get("memory", default_memory)
 
         service = {
             "image": "nousresearch/hermes-agent:latest",
@@ -69,8 +87,8 @@ def generate_docker_compose(team_id: str, agents: list[str]) -> dict:
             "deploy": {
                 "resources": {
                     "limits": {
-                        "cpus": "0.5",
-                        "memory": "512M",
+                        "cpus": cpu_limit,
+                        "memory": mem_limit,
                     }
                 }
             },

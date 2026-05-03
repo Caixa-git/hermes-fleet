@@ -17,6 +17,7 @@ def generate_fleet(
     team_id: str,
     team_def: dict,
     force: bool = False,
+    resources: dict[str, dict[str, str]] | None = None,
 ) -> Path:
     """
     Generate all fleet configuration files.
@@ -26,6 +27,7 @@ def generate_fleet(
         team_id: Team preset ID.
         team_def: Team definition dict.
         force: Overwrite existing files.
+        resources: Optional resource overrides (from fleet.yaml).
 
     Returns:
         Path to the generated output directory.
@@ -61,7 +63,7 @@ def generate_fleet(
         _write_if_not_exists(policy_path, policy_content, force)
 
     # --- Generate Docker Compose ---
-    compose = generate_docker_compose(team_id, agents)
+    compose = generate_docker_compose(team_id, agents, resources=resources)
     compose_path = output_dir / "docker-compose.generated.yaml"
     compose_content = yaml.dump(compose, default_flow_style=False)
     _write_if_not_exists(compose_path, compose_content, force)
@@ -93,6 +95,22 @@ def _render_soul_md(agent_id: str, role_data: dict, policy: dict) -> str:
     readonly_paths = policy.get("filesystem", {}).get("readonly_paths", ["**"])
     forbidden_paths = policy.get("filesystem", {}).get("forbidden_paths", [])
     network_mode = policy.get("network", {}).get("mode", "none")
+
+    # Provenance metadata (v0.2+)
+    source_repo = role_data.get("source_repository", "")
+    source_ref = role_data.get("source_ref", "")
+    source_path = role_data.get("source_path", "")
+    source_hash = role_data.get("source_hash", "")
+    provenance_lines = []
+    if source_repo:
+        provenance_lines.append(f"- **Source Repository**: {source_repo}")
+    if source_ref:
+        provenance_lines.append(f"- **Source Ref**: {source_ref}")
+    if source_path:
+        provenance_lines.append(f"- **Source Path**: {source_path}")
+    if source_hash:
+        provenance_lines.append(f"- **Source Hash**: {source_hash}")
+    provenance_str = "\n".join(provenance_lines) if provenance_lines else "  *(local preset — no upstream provenance)*"
 
     allowed_tasks_str = "\n".join(f"- {t}" for t in allowed_tasks)
     forbidden_tasks_str = "\n".join(f"- {t}" for t in forbidden_tasks)
@@ -203,6 +221,12 @@ If I detect missing permissions:
 - Stop the current action
 - Report the missing permission
 - Do not attempt to work around it
+
+|---
+
+# Provenance
+
+{provenance_str}
 
 ---
 

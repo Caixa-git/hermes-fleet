@@ -117,6 +117,136 @@ def check_all_services_have_read_only_root(compose: dict) -> dict:
 
 
 # ──────────────────────────────────────────────
+# Three-Pillar Role Adoption Gate (v0.2+)
+# ──────────────────────────────────────────────
+
+
+PILLAR_ROLE = "Role"
+PILLAR_BOUNDARY = "Boundary"
+PILLAR_COMPLETION = "Completion"
+
+
+def _check_pillar_role(role_id: str, data: dict) -> list[dict]:
+    """Pillar 1 — Role Fidelity: role identity must be complete."""
+    results = []
+    required = [
+        ("id", "Role ID"),
+        ("name", "Role name"),
+        ("description", "Role description"),
+        ("mission", "Role mission"),
+    ]
+    for field, label in required:
+        val = data.get(field, "")
+        if not val or (isinstance(val, str) and not val.strip()):
+            results.append(_fail(
+                f"pillar:role:{role_id}",
+                f"{label} is empty or missing for role '{role_id}'",
+            ))
+    # non_goals is recommended but not required for simpler roles
+    if "non_goals" not in data or not isinstance(data.get("non_goals"), str):
+        results.append(_skip(
+            f"pillar:role:{role_id}",
+            f"Non-goals not set for role '{role_id}' — recommended but not required",
+        ))
+    if not results:
+        results.append(_ok(f"pillar:role:{role_id}", f"Role '{role_id}' passes Role pillar"))
+    return results
+
+
+def _check_pillar_boundary(role_id: str, data: dict, known_presets: set[str]) -> list[dict]:
+    """Pillar 2 — Boundary/Isolation: permissions and task boundaries."""
+    results = []
+    preset = data.get("permission_preset", "")
+    if not preset:
+        results.append(_fail(
+            f"pillar:boundary:{role_id}",
+            f"No permission_preset for role '{role_id}'",
+        ))
+    elif preset not in known_presets:
+        results.append(_fail(
+            f"pillar:boundary:{role_id}",
+            f"Permission preset '{preset}' for role '{role_id}' does not exist",
+        ))
+    tasks = data.get("allowed_tasks", [])
+    if not tasks:
+        results.append(_fail(
+            f"pillar:boundary:{role_id}",
+            f"No allowed_tasks defined for role '{role_id}'",
+        ))
+    forbidden = data.get("forbidden_tasks", [])
+    if not forbidden:
+        results.append(_skip(
+            f"pillar:boundary:{role_id}",
+            f"No forbidden_tasks for role '{role_id}' — recommend at least one",
+        ))
+    if not results:
+        results.append(_ok(f"pillar:boundary:{role_id}", f"Role '{role_id}' passes Boundary pillar"))
+    return results
+
+
+def _check_pillar_completion(role_id: str, data: dict) -> list[dict]:
+    """Pillar 3 — Completion: handoff readiness and gates."""
+    results = []
+    handoff_contract = data.get("handoff_contract")
+    inline_handoff = data.get("handoff", {}) or {}
+    has_handoff = bool(handoff_contract) or bool(inline_handoff.get("required_outputs"))
+    if not has_handoff:
+        results.append(_fail(
+            f"pillar:completion:{role_id}",
+            f"No handoff_contract reference or inline handoff outputs for role '{role_id}'",
+        ))
+    gates = data.get("completion_gates", {}) or {}
+    required_gates = gates.get("required", [])
+    if not required_gates:
+        results.append(_skip(
+            f"pillar:completion:{role_id}",
+            f"No completion gates for role '{role_id}' — recommend at least one gate",
+        ))
+    if not results:
+        results.append(_ok(f"pillar:completion:{role_id}", f"Role '{role_id}' passes Completion pillar"))
+    return results
+
+
+def run_role_adoption_gate(roles: list[dict], known_presets: set[str]) -> list[dict]:
+    """Run all three pillar checks against every role.
+
+    Args:
+        roles: List of raw role dicts (from YAML).
+        known_presets: Set of valid permission preset IDs.
+
+    Returns:
+        List of check result dicts with check/status/message keys.
+    """
+    results = []
+    pillar_counts: dict[str, dict[str, int]] = {}
+    for role_data in roles:
+        role_id = role_data.get("id", "unknown")
+        pillar_counts[role_id] = {"passed": 0, "failed": 0, "skipped": 0}
+        for check_fn, pillar_name in [
+            (_check_pillar_role, "Role"),
+            (_check_pillar_boundary, "Boundary"),
+            (_check_pillar_completion, "Completion"),
+        ]:
+            if pillar_name == "Boundary":
+                sub_results = check_fn(role_id, role_data, known_presets)
+            else:
+                sub_results = check_fn(role_id, role_data)
+            for sr in sub_results:
+                pillar_counts[role_id][sr["status"]] += 1
+                results.append(sr)
+    # Summary
+    total_passed = sum(c["passed"] for c in pillar_counts.values())
+    total_failed = sum(c["failed"] for c in pillar_counts.values())
+    total_skipped = sum(c["skipped"] for c in pillar_counts.values())
+    results.append(_ok(
+        "pillar:summary",
+        f"3-pillar gate: {len(roles)} roles, {total_passed} passed, "
+        f"{total_failed} failed, {total_skipped} skipped",
+    ))
+    return results
+
+
+# ──────────────────────────────────────────────
 # All Docker Compose Checks
 # ──────────────────────────────────────────────
 

@@ -59,10 +59,14 @@ def init(
         console.print("[yellow]⚠ fleet.yaml already exists. Skipping.[/yellow]")
     else:
         default_config = {
-            "fleet_version": "0.1.0",
+            "fleet_version": "0.2.0",
             "name": project_dir.name,
             "team": "general-dev",
             "output_dir": ".fleet/generated",
+            "resources": {
+                "default_cpu": "0.5",
+                "default_memory": "512M",
+            },
         }
 
         with open(fleet_yaml_path, "w") as f:
@@ -267,6 +271,7 @@ def generate(
         team_id=selected_team,
         team_def=team_def,
         force=force,
+        resources=fleet_config.get("resources"),
     )
 
     console.print(f"\n[green]✓ Generated fleet configuration in: {output_dir}[/green]")
@@ -330,8 +335,25 @@ def validate(
             handoffs_dict[hc.id] = hc
 
     # Run cross-reference validation
+    from hermes_fleet.checks import run_role_adoption_gate as _run_gate
     results = validate_contract_cross_references(
         teams, roles, known_presets=known_presets, handoff_contracts=handoffs_dict
+    )
+
+    # Three-pillar role adoption gate
+    raw_roles = []
+    for role_id in list_available_roles():
+        data = load_role(role_id)
+        if data is not None:
+            raw_roles.append(data)
+    pillar_results = _run_gate(raw_roles, set(known_presets))
+    results.extend(
+        CheckResult(
+            status=r["status"],
+            check=r["check"],
+            message=r.get("message", ""),
+        )
+        for r in pillar_results
     )
 
     # Lock file checks — only if .fleet/ exists (project context)
