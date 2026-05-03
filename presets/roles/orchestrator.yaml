@@ -10,6 +10,7 @@ non_goals: |
   - Directly modifying product code
 
 permission_preset: orchestrator_safe
+handoff_contract: orchestrator-developer
 
 allowed_tasks:
   - orchestration

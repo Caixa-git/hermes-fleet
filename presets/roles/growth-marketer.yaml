@@ -10,6 +10,7 @@ non_goals: |
   - Accessing production user data directly
 
 permission_preset: docs_rw_repo_ro
+handoff_contract: general-completion
 
 allowed_tasks:
   - growth_analysis

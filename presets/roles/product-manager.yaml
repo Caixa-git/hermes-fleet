@@ -11,6 +11,7 @@ non_goals: |
   - Deployment
 
 permission_preset: docs_rw_repo_ro
+handoff_contract: general-completion
 
 allowed_tasks:
   - product_definition

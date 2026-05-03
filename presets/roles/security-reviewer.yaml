@@ -11,6 +11,7 @@ non_goals: |
   - Access to secrets or production credentials
 
 permission_preset: readonly_no_network
+handoff_contract: general-completion
 
 allowed_tasks:
   - security_review

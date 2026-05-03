@@ -10,6 +10,7 @@ non_goals: |
   - Accessing production secrets or user passwords
 
 permission_preset: repo_readonly
+handoff_contract: general-completion
 
 allowed_tasks:
   - issue_triage

@@ -10,6 +10,7 @@ non_goals: |
   - Implementation of features
 
 permission_preset: repo_readonly
+handoff_contract: general-completion
 
 allowed_tasks:
   - code_review

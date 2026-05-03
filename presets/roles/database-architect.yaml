@@ -10,6 +10,7 @@ non_goals: |
   - Infrastructure changes
 
 permission_preset: schema_worktree_rw
+handoff_contract: developer-reviewer
 
 allowed_tasks:
   - database_schema

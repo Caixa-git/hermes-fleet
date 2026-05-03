@@ -10,6 +10,7 @@ non_goals: |
   - Production secret access
 
 permission_preset: backend_worktree_rw
+handoff_contract: developer-reviewer
 
 allowed_tasks:
   - backend

@@ -10,6 +10,7 @@ non_goals: |
   - Security review
 
 permission_preset: docs_rw_repo_ro
+handoff_contract: general-completion
 
 allowed_tasks:
   - design

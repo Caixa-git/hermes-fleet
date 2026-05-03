@@ -10,6 +10,7 @@ non_goals: |
   - Making design decisions
 
 permission_preset: test_runner
+handoff_contract: qa-feedback
 
 allowed_tasks:
   - qa_testing

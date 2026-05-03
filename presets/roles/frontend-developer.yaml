@@ -11,6 +11,7 @@ non_goals: |
   - Production secret access
 
 permission_preset: frontend_worktree_rw
+handoff_contract: developer-reviewer
 
 allowed_tasks:
   - frontend
