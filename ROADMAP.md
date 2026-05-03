@@ -2,7 +2,7 @@
 
 ---
 
-## v0.1 — Generator and Validator (Current)
+## v0.1 — Generator and Validator
 
 **Goal**: Self-contained CLI that generates secure, role-based Hermes Agent team configurations.
 **Strengthens**: Role (role presets, SOUL.md), Boundary (policy.yaml, Docker Compose, safe-defaults)
@@ -34,7 +34,7 @@
 
 ---
 
-## v0.2 — Team Expansion, Role Fidelity, and agency-agents Import
+## v0.2 — Team Expansion, Role Fidelity, and agency-agents Import (Current)
 
 **Goal**: More team presets, user customization, agency-agents import, and role-fidelity infrastructure.
 **Strengthens**: Role (agency-agents import, provenance metadata, preserve compiler), Completion (contract schemas, handoff contracts)
