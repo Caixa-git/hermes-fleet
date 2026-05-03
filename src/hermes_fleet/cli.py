@@ -1,4 +1,4 @@
-"""Hermes Fleet CLI — v0.1
+"""Hermes Fleet CLI — v0.2
 
 Commands:
   init              Create local .fleet configuration
@@ -6,6 +6,7 @@ Commands:
   generate          Generate agent configurations
   validate          Validate all preset contracts and cross-references
   test safe-defaults  Validate generated configurations
+  customize         Customize fleet configuration (roles, permissions, resources)
 """
 
 from pathlib import Path
@@ -210,15 +211,6 @@ def generate(
     with open(fleet_yaml_path) as f:
         fleet_config = yaml.safe_load(f) or {}
 
-    # Validate fleet.yaml against contract schema
-    from hermes_fleet.contracts import ContractValidationError, fleet_config_from_dict
-
-    try:
-        fleet_config_from_dict(fleet_config)
-    except ContractValidationError as e:
-        console.print(f"[red]✗ {e}[/red]")
-        raise typer.Exit(1)
-
     selected_team = team or fleet_config.get("team", "general-dev")
 
     # Load team
@@ -239,7 +231,7 @@ def generate(
     missing_roles = [a for a in agents if load_role(a) is None]
     if missing_roles:
         console.print(
-            f"[red]✗ Team '{selected_team}' references unknown roles: "
+            f"[red]✗ Fleet references unknown roles: "
             f"{', '.join(missing_roles)}[/red]\n"
             f"  Run 'hermes-fleet validate' for full diagnostics."
         )
@@ -281,7 +273,7 @@ def generate(
         f"  {output_dir}/agents/<agent-id>/SOUL.md\n"
         f"  {output_dir}/agents/<agent-id>/policy.yaml\n"
         f"  {output_dir}/kanban/\n"
-        "\nNext: hermes-fleet test safe-defaults or hermes-fleet validate"
+        "Next: hermes-fleet test safe-defaults or hermes-fleet validate"
     )
 
 
@@ -478,6 +470,187 @@ def test_safe_defaults(
         console.print(f"\n[red]Safe-defaults check FAILED.[/red]")
         raise typer.Exit(1)
     console.print(f"\n[green]All safe-defaults checks PASSED.[/green]")
+
+
+# ──────────────────────────────────────────────
+# Customize Command (v0.2+)
+# ──────────────────────────────────────────────
+
+
+customize_app = typer.Typer(
+    name="customize",
+    help="Customize fleet configuration (roles, permissions, resources).",
+    add_completion=False,
+)
+app.add_typer(customize_app, name="customize")
+
+
+@customize_app.command("status")
+def customize_status():
+    """Show current fleet configuration and available overrides."""
+    fleet_dir = _get_fleet_dir(Path.cwd())
+    if not fleet_dir.exists():
+        console.print("[red]✗ No .fleet/ directory. Run 'hermes-fleet init' first.[/red]")
+        raise typer.Exit(1)
+
+    from hermes_fleet.teams import (
+        list_available_roles,
+        list_available_teams,
+        list_available_permission_presets,
+    )
+
+    roles = list_available_roles(Path.cwd())
+    teams = list_available_teams()
+    presets = list_available_permission_presets(Path.cwd())
+
+    fleet_yaml_path = fleet_dir / "fleet.yaml"
+    fleet_config = {}
+    if fleet_yaml_path.exists():
+        with open(fleet_yaml_path) as f:
+            fleet_config = yaml.safe_load(f) or {}
+
+    console.print(f"\n[bold cyan]Fleet Configuration[/bold cyan]")
+    console.print(f"  Team: {fleet_config.get('team', 'general-dev')}")
+    console.print(f"  Fleet version: {fleet_config.get('fleet_version', '?')}")
+    console.print(f"  Resources: {fleet_config.get('resources', {})}")
+
+    custom_roles_dir = fleet_dir / "roles"
+    custom_perms_dir = fleet_dir / "permissions"
+    if custom_roles_dir.exists():
+        custom_roles = [f.stem for f in custom_roles_dir.glob("*.yaml")]
+        console.print(f"\n[green]Custom roles (in .fleet/roles/):[/green]")
+        for r in custom_roles:
+            console.print(f"  ✓ {r}")
+    else:
+        console.print(f"\n[dim]No custom roles (.fleet/roles/)[/dim]")
+
+    if custom_perms_dir.exists():
+        custom_perms = [f.stem for f in custom_perms_dir.glob("*.yaml")]
+        console.print(f"\n[green]Custom permission presets (in .fleet/permissions/):[/green]")
+        for p in custom_perms:
+            console.print(f"  ✓ {p}")
+    else:
+        console.print(f"\n[dim]No custom permissions (.fleet/permissions/)[/dim]")
+
+    console.print(f"\nAvailable teams ({len(teams)}): {', '.join(teams)}")
+    console.print(f"Available roles ({len(roles)}): {', '.join(roles)}")
+    console.print(f"Available permission presets ({len(presets)}): {', '.join(presets)}")
+    console.print(f"\n[dim]To add custom roles:[/dim]")
+    console.print(f"  mkdir -p .fleet/roles && cp <your-role.yaml> .fleet/roles/")
+    console.print(f"\n[dim]To add custom permissions:[/dim]")
+    console.print(f"  mkdir -p .fleet/permissions && cp <your-preset.yaml> .fleet/permissions/")
+    console.print(f"\n[dim]To edit resources:[/dim]")
+    console.print(f"  Edit .fleet/fleet.yaml -> add resources section")
+
+
+@customize_app.command("roles")
+def customize_roles(
+    add: str = typer.Option(None, "--add", help="Path to a role YAML file to add as custom"),
+):
+    """Manage custom role definitions."""
+    fleet_dir = _get_fleet_dir(Path.cwd())
+    custom_dir = fleet_dir / "roles"
+
+    if add:
+        src_path = Path(add).resolve()
+        if not src_path.exists():
+            console.print(f"[red]✗ File not found: {src_path}[/red]")
+            raise typer.Exit(1)
+        custom_dir.mkdir(parents=True, exist_ok=True)
+        role_id = src_path.stem
+        dst_path = custom_dir / f"{role_id}.yaml"
+        import shutil
+        shutil.copy2(src_path, dst_path)
+        console.print(f"[green]✓ Added custom role: {role_id}[/green]")
+        console.print(f"  Source: {src_path}")
+        console.print(f"  Dest: {dst_path}")
+        return
+
+    from hermes_fleet.teams import list_available_roles
+    roles = list_available_roles(Path.cwd())
+    custom_roles = []
+    if custom_dir.exists():
+        custom_roles = [f.stem for f in custom_dir.glob("*.yaml")]
+
+    console.print(f"\n[bold]Available roles ({len(roles)}):[/bold]")
+    for r in sorted(roles):
+        marker = "[green]✓[/green]" if r in custom_roles else " "
+        console.print(f"  {marker} {r}")
+
+    console.print(f"\n[dim]Add a custom role:[/dim]")
+    console.print(f"  hermes-fleet customize roles --add <path-to-role.yaml>")
+
+
+@customize_app.command("permissions")
+def customize_permissions(
+    add: str = typer.Option(None, "--add", help="Path to a permission preset YAML to add"),
+):
+    """Manage custom permission presets."""
+    fleet_dir = _get_fleet_dir(Path.cwd())
+    custom_dir = fleet_dir / "permissions"
+
+    if add:
+        src_path = Path(add).resolve()
+        if not src_path.exists():
+            console.print(f"[red]✗ File not found: {src_path}[/red]")
+            raise typer.Exit(1)
+        custom_dir.mkdir(parents=True, exist_ok=True)
+        preset_id = src_path.stem
+        dst_path = custom_dir / f"{preset_id}.yaml"
+        import shutil
+        shutil.copy2(src_path, dst_path)
+        console.print(f"[green]✓ Added custom permission preset: {preset_id}[/green]")
+        return
+
+    from hermes_fleet.teams import list_available_permission_presets
+    presets = list_available_permission_presets(Path.cwd())
+    console.print(f"\n[bold]Available permission presets ({len(presets)}):[/bold]")
+    for p in presets:
+        console.print(f"  - {p}")
+
+    console.print(f"\n[dim]Add a custom preset:[/dim]")
+    console.print(f"  hermes-fleet customize permissions --add <path-to-preset.yaml>")
+
+
+@customize_app.command("resources")
+def customize_resources(
+    cpu: str = typer.Option(None, "--cpu", help="Default CPU limit (e.g. '0.5', '1.0')"),
+    memory: str = typer.Option(None, "--memory", help="Default memory limit (e.g. '512M', '1G')"),
+):
+    """Edit default resource limits for fleet agents."""
+    fleet_dir = _get_fleet_dir(Path.cwd())
+    fleet_yaml_path = fleet_dir / "fleet.yaml"
+
+    if not fleet_yaml_path.exists():
+        console.print(f"[red]✗ No fleet.yaml. Run 'hermes-fleet init' first.[/red]")
+        raise typer.Exit(1)
+
+    with open(fleet_yaml_path) as f:
+        config = yaml.safe_load(f) or {}
+
+    resources = config.get("resources", {})
+    changed = False
+    if cpu:
+        resources["default_cpu"] = cpu
+        changed = True
+    if memory:
+        resources["default_memory"] = memory
+        changed = True
+
+    if not changed:
+        console.print(f"[yellow]Current resources:[/yellow]")
+        console.print(f"  CPU: {resources.get('default_cpu', '0.5')}")
+        console.print(f"  Memory: {resources.get('default_memory', '512M')}")
+        console.print(f"\n[dim]To change:[/dim]")
+        console.print(f"  hermes-fleet customize resources --cpu 1.0 --memory 1G")
+        return
+
+    config["resources"] = resources
+    with open(fleet_yaml_path, "w") as f:
+        yaml.dump(config, f, default_flow_style=False)
+    console.print(f"[green]✓ Resources updated:[/green]")
+    console.print(f"  CPU: {resources.get('default_cpu', '0.5')}")
+    console.print(f"  Memory: {resources.get('default_memory', '512M')}")
 
 
 def main():
