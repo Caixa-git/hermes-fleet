@@ -8,10 +8,11 @@ Prompt is not a permission boundary. Container is.
 
 ```
   ╔═══════════════════════════════════╗
-  ║  Role.  Boundary.  Completion.    ║
+  ║  Isolation.                       ║
   ║                                   ║
-  ║  A simple knife is the most       ║
-  ║  deadly.                          ║
+  ║  Every agent has its own room.    ║
+  ║  Only the orchestra conductor     ║
+  ║  holds all the keys.              ║
   ╚═══════════════════════════════════╝
 ```
 
@@ -73,41 +74,58 @@ v0.1 is a **local CLI tool** that generates team configuration as text files. It
 
 ---
 
-## Core Pillars
+## Single Pillar: Isolation
 
-Hermes Fleet gives every agent a role to preserve, a boundary it cannot
-cross, and a completion contract it must satisfy.
+Hermes Fleet is built on one non-negotiable principle: **every agent is isolated**.
 
-### 1. Role — Who the agent is
+No agent can see another agent's memory, files, network, or secrets. No agent can talk to another agent directly. Even the user cannot talk to sub-agents directly. Every message, every piece of data, every network request must pass through **the orchestrator** — the sole entity that holds all the keys.
 
-Every agent's identity is traceable to an upstream role specification
-(agency-agents). The compiler preserves the original spec — no AI
-summarization, no drift. Provenance metadata is recorded in every SOUL.md.
+From this single pillar, four facets emerge:
+
+### Facet 1: Role — Who lives in each room
+
+Every agent's identity is traceable to an upstream role specification (agency-agents). The compiler preserves the original spec — no AI summarization, no drift. Provenance metadata is recorded in every SOUL.md.
 
 *Key question: "Who is this agent, and what should it do?"*
 
-### 2. Boundary — What the agent can and cannot do
+### Facet 2: Boundary — The walls of the room
 
-Role identity is aspirational; the container is the boundary. policy.yaml
-defines filesystem, network, secret, and command permissions. Docker
-enforces them with `cap_drop`, `read_only`, `network: none`, and similar
-hardware-enforced mechanisms.
+Role identity is aspirational; isolation is enforced. policy.yaml defines filesystem, network, secret, and command permissions. Docker enforces with `cap_drop`, `read_only`, `network: none`. Each agent gets its own container, its own memory volume, its own workspace.
 
 *Key question: "What can this agent do, and what is off-limits?"*
 
-### 3. Completion — When work is truly done
+### Facet 3: Completion — How work passes between rooms
 
-Handoff is a role-specific contract, not a generic message. Each role
-defines its own required outputs, validation rules, and completion gates.
-The receiving agent must be able to continue from the handoff alone.
+Handoff is a role-specific contract, not a generic message. Each role defines its own required outputs, validation rules, and completion gates. The receiving agent must be able to continue from the handoff alone. All handoffs pass through the orchestrator.
 
 Done = output + verification + record + handoff.
 
 *Key question: "Is the work really done, and can the next person pick it up?"*
 
-> **Future**: v0.3+ will add formal work-lifecycle tracking and verifiable
-> completion definitions under the Agent Accountability Protocol
-> (`docs/design/AGENT_ACCOUNTABILITY_PROTOCOL.md`).
+### Facet 4: Orchestrator — The only one who opens doors
+
+The orchestrator is not a separate pillar. It is the runtime agent that can cross isolation boundaries — the sole communication channel between any two entities in the fleet.
+
+- It assigns tasks to sub-agents. They execute in isolation.
+- It receives completed work. Verifies. Aggregates.
+- It reports to the user. The user approves or redirects.
+- It reassigns. The cycle continues.
+- If a sub-agent needs temporary network access, it requests the orchestrator. The orchestrator asks the user. User grants a time-limited exception. Isolation is restored automatically on expiry.
+
+```
+Agent ──task complete──→ Orchestrator (verify + aggregate)
+                           Orchestrator ──report──→ User
+                           User ──approve or redirect──→ Orchestrator
+                           Orchestrator ──next task or reassign──→ Agent
+```
+
+- Sub-agents never contact the user directly. The orchestrator is the sole intermediary.
+- No per-agent approval gates. No approval thresholds.
+- Policy violations are handled by policy.yaml enforcement, not by user approval.
+
+*Key question: "Who manages the fleet, and how does the user stay in control?"*
+
+The answer: the orchestrator manages. The user controls. They are never the same entity.
 
 ---
 
@@ -135,10 +153,13 @@ work without manually wiring every detail.
 
 | Version | Focus |
 |---------|-------|
-| **v0.1** (current) | Generator and validator. Team/role presets, safe-defaults checks. |
-| **v0.2** (next) | Contract-driven team composition. Team/Role/Handoff Contract schemas. `agency.lock.yaml` and `foundation.lock.yaml`. Deterministic onboarding protocol. |
-| **v0.3** | Container lifecycle management. Optional AI onboarding provider. Schema-validated Team Proposal. agency-agents preserve compiler. |
-| **v0.4** | Runtime policy enforcement. Isolated Hermes agent execution. Runtime handoff validation. Recovery and self-healing. |
+| **v0.1** | Generator and validator. Team/role presets, safe-defaults checks. |
+| **v0.2** | Contract-driven composition. Pydantic schemas, dual lock layers, agency-agents import. |
+| **v0.3** (current) | Container lifecycle: up/down/status/logs/restart. Runtime validation. |
+| **v0.4** | Agent runtime. Token budgets, agent lifecycle state machine, handoff contract runtime. |
+| **v0.5** | Orchestrator integration. Task assignment, user approval gate, sub-agent autonomy. |
+| **v0.6** | Policy enforcement. Runtime handoff validation, violation detection, recovery. |
+| **v0.7** | Kanban runtime. Fleet mode with repo ingestion, task tracking, handoff visualization. |
 | **v1.0** | Production-ready: audit logging, secret management, CI/CD, web dashboard. |
 
 See [ROADMAP.md](./ROADMAP.md) for the full development plan.

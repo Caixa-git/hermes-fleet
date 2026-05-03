@@ -182,21 +182,19 @@ User goal ───────────┘                              │
 
 ## Design Principles
 
-### Core Pillars
+### Single Pillar: Isolation
 
-Hermes Fleet gives every agent a role to preserve, a boundary it cannot
-cross, and a completion contract it must satisfy.
+Hermes Fleet is built on one non-negotiable principle: **every agent is isolated**.
 
-These three pillars are grounded in four design foundation sources (see
-`DESIGN_FOUNDATIONS.md`) and locked via `foundation.lock.yaml`:
+From this single pillar, four facets emerge — **Role**, **Boundary**, **Completion**, **Orchestrator** — grounded in four foundation sources and locked via `foundation.lock.yaml`:
 
 | Pillar | Foundation Source | Key Artifacts |
 |--------|-------------------|---------------|
 | Role | Agent-Oriented Planning (solvability, completeness, non-redundancy); LLM MAS Survey (profile, evolution) | SOUL.md, agency-agents lock, provenance metadata |
 | Boundary | NIST RBAC / Sandhu RBAC (least privilege, role-permission mapping, separation of duties) | policy.yaml, Docker Compose, safe-defaults validator |
-| Completion | Contract Net Protocol (task contract, manager-contractor assignment, structured reporting) | Handoff contracts, completion gates, kanban templates |
+| Completion | Contract Net Protocol (task contract, manager-contractor assignment, structured reporting, human verification) | Handoff contracts, completion gates, kanban templates |
 
-#### 1. Role — Who the agent is
+#### Facet 1: Role — Who lives in each room
 
 The framework's most important responsibility is preserving the integrity
 of each role's source specification.
@@ -217,7 +215,7 @@ the upstream source. The preserve compiler and provenance metadata are
 the mechanisms. The advisor (planner) is foundation-bound — it cannot
 invent roles beyond the locked inventory.
 
-#### 2. Boundary — What the agent can and cannot do
+#### Facet 2: Boundary — The walls of the room
 
 Role identity declared in SOUL.md is aspirational. The actual boundary is
 enforced by policy.yaml and Docker.
@@ -237,7 +235,7 @@ enforced by policy.yaml and Docker.
 (`cap_drop`, `read_only`, `network`) enforces it. The safe-defaults
 validator proves it. RBAC (NIST) is the theoretical foundation.
 
-#### 3. Completion — When work is truly done
+#### Facet 3: Completion — How work passes between rooms
 
 Handoff is a **role-specific contract**, not a generic message.
 

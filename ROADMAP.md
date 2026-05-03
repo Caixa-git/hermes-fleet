@@ -4,8 +4,8 @@
 
 ## v0.1 — Generator and Validator
 
-**Goal**: Self-contained CLI that generates secure, role-based Hermes Agent team configurations.
-**Strengthens**: Role (role presets, SOUL.md), Boundary (policy.yaml, Docker Compose, safe-defaults)
+**Goal**: Self-contained CLI that generates secure, isolated Hermes Agent team configurations.
+**Isolation facet**: Role (team presets, SOUL.md), Boundary (policy.yaml, Docker Compose, safe-defaults)
 
 ### Features
 - [x] Team presets: `general-dev`, `saas-medium`
@@ -34,10 +34,10 @@
 
 ---
 
-## v0.2 — Team Expansion, Role Fidelity, and agency-agents Import (Current)
+## v0.2 — Team Expansion, Role Fidelity, and agency-agents Import
 
 **Goal**: More team presets, user customization, agency-agents import, and role-fidelity infrastructure.
-**Strengthens**: Role (agency-agents import, provenance metadata, preserve compiler), Completion (contract schemas, handoff contracts)
+**Isolation facet**: Role (agency-agents import, provenance metadata, preserve compiler), Completion (contract schemas, handoff contracts)
 
 ### Role Fidelity
 - [x] agency-agents upstream import interface: fetch, parse, compile agency-agents YAML persona files into fleet roles
@@ -60,7 +60,6 @@
 
 ### Team Expansion
 - [x] Additional team presets: `iphone-app`, `ai-app`, `security-audit`, `research-writing`, `content-creator`, `devops-deployment` (8 total)
-- [x] New role adoption gate: each new role must pass all three pillar checks (Role ✓, Boundary ✓, Completion ✓)
 - [x] `hermes-fleet customize` — fleet configuration (roles, permissions, resources)
 - [x] Custom role definitions from local YAML files (`.fleet/roles/`)
 - [x] Permission preset customization (`.fleet/permissions/`)
@@ -87,105 +86,122 @@
 
 ## v0.3 — Container Lifecycle Management (Current)
 
-**Goal**: Actually run the generated containers and manage agent lifecycles.
-**Strengthens**: Boundary (container lifecycle, volume persistence)
+**Goal**: Actually run the generated containers with full isolation — memory, filesystem, network.
+**Isolation facet**: Boundary (container lifecycle, volume persistence, network isolation)
 
 ### Container Lifecycle
-- `hermes-fleet up` — start the fleet (docker compose up)
-- `hermes-fleet down` — stop the fleet
-- `hermes-fleet status` — check agent health (container-level: running/stopped/crashed)
-- `hermes-fleet logs <agent>` — view agent logs
-- `hermes-fleet restart <agent>` — restart individual agent
-- Container health checks and restart policies
-- Volume persistence management
+- [x] `hermes-fleet up` — start the fleet (docker compose up)
+- [x] `hermes-fleet down` — stop the fleet
+- [x] `hermes-fleet status` — check agent health (container-level: running/stopped/crashed)
+- [x] `hermes-fleet logs <agent>` — view agent logs
+- [x] `hermes-fleet restart <agent>` — restart individual agent
+- [x] Container health checks and restart policies
+- [x] Volume persistence management
+- [x] Per-agent network: sub-agents default to `network: none`, orchestrator has network access
 
 ### Validation
-- `hermes-fleet validate` extended with handoff contract required_fields check:
+- [x] `hermes-fleet validate` extended with handoff contract required_fields check:
   every handoff contract must define at least one required_field
 
 ---
 
-## v0.4 — Agent Runtime and AI Onboarding
+## v0.4 — Isolation Runtime
 
-**Goal**: Agent-level state management (ACTIVE/IDLE), token budget enforcement, handoff contract runtime, and optional AI onboarding provider.
-**Strengthens**: Completion (agent lifecycle, handoff contract runtime, AI onboarding)
+**Goal**: Three-layer isolation enforcement at runtime — memory, communication, and network.
+**Isolation facet**: All facets — the runtime makes isolation real.
 
-### Token Budget and Agent Runtime
-- fleet.yaml `max_iterations_per_session` field for per-agent token budget
+### Memory Isolation
+- Per-agent memory volumes: agent A cannot read agent B's memory
+- Memory persistence across restarts (volume lifecycle)
+- Memory wipe on agent retirement
+
+### Communication Isolation
+- Gateway routing: user messages go to orchestrator only
+- Sub-agents cannot send messages outside their container
+- All agent-to-any communication proxied through orchestrator
+- No direct agent-to-agent messaging
+
+### Network Isolation
+- Role-based network policy: `isolated` / `outbound-only` / `proxy`
+- Default for sub-agents: `network: none`
+- Orchestrator sets network policy at team composition time
+- Temporary network access requests: agent → orchestrator → user approval → time-limited grant → auto-revoke
+
+### Agent Runtime
 - Agent lifecycle state machine: CREATED → ACTIVE → IDLE → COMPLETED → ARCHIVED
 - IDLE agents reject messages; orchestrator must wake them explicitly
-- Loop detection: tool-call output entropy monitoring (same input+output patterns trigger alert)
-- Team presets annotated with token consumption class (light/medium/heavy) based on collected data
-
-### AI Onboarding Provider (Optional)
-- Plugin interface for LLM-backed team recommendation
-- AI output constrained to the **Team Proposal schema**:
-  `recommended_team_id`, `rationale`, optional `customizations` only
-- Schema-validated: proposal rejected if team ID, roles, presets, or
-  handoff contracts don't resolve against known inventories
-- No auto-apply: every AI proposal must pass validation gates before
-  generation proceeds
-- The AI is a **foundation-bound planner**: it operates within the
-  boundaries of `foundation.lock.yaml` and `agency.lock.yaml`
+- Token budget per session (`max_iterations_per_session`)
 
 ### Handoff Contract Runtime
-- **Handoff contract validation at handoff time**: when agent A hands off
-  to agent B, the handoff contract is checked against the runtime state
-  of the handoff document
-- **Handoff rejection**: if required fields are missing or validation
-  rules fail, the handoff is rejected and the orchestrator is notified
-- **from_roles enforcement**: agent A must be in the contract's
-  `from_roles` list; agent B must be in `allowed_next_roles`
+- Handoff contract validation at handoff time (required fields, role checks)
+- Handoff rejection with orchestrator notification
+- `from_roles` and `allowed_next_roles` enforcement
 
 ---
 
-## v0.5 — Orchestrator Agent Integration
+## v0.5 — Orchestrator Integration
 
-**Goal**: The orchestrator agent can manage the fleet autonomously — assign tasks, detect stalls, request status, and improve agent performance over time. The self-improving loop is the core value: orchestrator makes the fleet smarter, not just louder.
-**Strengthens**: Completion (task orchestration, self-improvement loop, agent lifecycle management)
+**Goal**: The orchestrator becomes the sole communication channel. All fleet interaction passes through it.
+**Isolation facet**: Orchestrator — the entity that can cross isolation boundaries.
 
-- **Fleet event bus** for agent-to-agent communication
-- **Orchestrator SOUL.md** with fleet management capabilities: create, assign, handoff tasks
-- **Orchestrator can detect stalled agents** — agents exceeding budget or producing no output
-- **Orchestrator can request fleet status** — `hermes-fleet status` integration
-- **Orchestrator can improve agents** — rewrite agent SOUL.md, skills, and config based on observed performance (Hermes Alpha-style meta-agent pattern)
-- **Integration with Hermes Agent delegation system** (`delegate_task` for subagent spawning)
-- **Terminal-based orchestrator dashboard** — real-time view of agent states, tasks, and health
+- **Orchestrator as sole intermediary**: no direct agent-to-agent, no agent-to-user
+- **Task assignment**: orchestrator assigns tasks to sub-agents based on role and capacity
+- **Completion flow**: agent completes task → reports to orchestrator → orchestrator verifies and aggregates
+- **User approval gate**: orchestrator presents aggregated results → user approves or redirects
+- **Direction adjustment**: user rejects or redirects → orchestrator reassigns with updated instructions
+- **Orchestrator SOUL.md** with fleet management capabilities: assign, monitor, verify, report
+- **Stalled agent detection** — agents exceeding budget or producing no output
+- **Network exception handling**: sub-agent requests temp access → orchestrator asks user → time-limited grant
+- **Terminal-based orchestrator dashboard** — real-time view of agent states, tasks, pending approvals
+
+### Interaction Model
+
+```
+Agent ──task complete──→ Orchestrator (verify + aggregate)
+                           Orchestrator ──report──→ User
+                           User ──approve or redirect──→ Orchestrator
+                           Orchestrator ──next task or reassign──→ Agent
+```
+
+- Orchestrator has full autonomy over sub-agent task assignment and monitoring
+- User interaction is limited to: reviewing completed work, approving results, giving direction
+- No per-agent approval gates. The orchestrator is the single point of user contact
+- Policy violations are handled by policy.yaml enforcement, not by user approval
 
 ---
 
-## v0.6 — Policy Enforcement, Runtime Handoff, and Recovery
+## v0.6 — Policy Enforcement and Recovery
 
-**Goal**: Runtime policy enforcement at the container boundary. Role-specific handoff contracts validated at runtime. Self-healing from violations.
-**Strengthens**: Boundary (policy enforcer, runtime enforcement), Completion (runtime handoff validation, recovery)
+**Goal**: Runtime enforcement of isolation policies. Violation detection, escalation, and recovery.
+**Isolation facet**: Boundary — the walls are enforced, not just declared.
 
 ### Policy Enforcement
 - Policy enforcer sidecar per container
 - Filesystem write allow/deny enforcement
 - Command execution allow/deny enforcement
-- Network access enforcement
+- Network access enforcement (allowlist-based)
 - Secret injection with allowlist enforcement
 - Violation detection and logging
 - Soft/medium/hard/critical violation levels
-- Role drift detection and alerting
+- Isolation drift detection and alerting
 
 ### Runtime Handoff Validation
-- **Role-specific handoff validation**: each agent's handoff contract is validated against its role's required outputs (not just common template)
-- **Isolation audit**: periodic verification that agent A cannot access agent B's data, files, or secrets
+- Role-specific handoff validation against required outputs
+- Isolation audit: periodic verification that agent A cannot access agent B's data
 
 ### Recovery and Self-Healing
 - Soft violations: request correction, document in audit log
 - Medium violations: block task, notify orchestrator
 - Hard violations: pause container, preserve workspace snapshot, require review
-- Critical violations: kill container, redact output, create security incident, recommend secret rotation
+- Critical violations: kill container, redact output, create security incident
 - Workspace snapshot preservation for forensic analysis
 
 ---
 
 ## v0.7 — Kanban Runtime and Fleet Mode
 
-**Goal**: Built-in Kanban board for task tracking and handoff visualization. Repo Fleet Mode — ingest an existing repo, create a fleeted workspace, and run a PR-based team workflow.
-**Strengthens**: Completion (kanban visualization, task tracking), Integration (repo ingestion, GitHub workflow)
+**Goal**: Task visualization and fleet lifecycle management. Repo ingestion for existing projects.
+**Isolation facet**: Completion — structured, visible, auditable work flow.
 
 ### Kanban Runtime
 - `hermes-fleet task create` — create a task
@@ -198,7 +214,7 @@
 
 ### Fleet Mode (New Project)
 - `hermes-fleet fleet new "<goal>"` — create new fleeted repo from goal
-- Team proposal from goal only (no fingerprint needed)
+- Team proposal from goal only
 - Auto-create fleeted repo on GitHub
 
 ### Fleet Mode (Existing Repo)
@@ -208,7 +224,7 @@
 - Team proposal from fingerprint + goal
 - First issue auto-created for orchestrator
 
-|---
+---
 
 ## v1.0 — Production-Ready
 
@@ -220,8 +236,8 @@
 - Audit log export
 - Multiple parallel active fleets
 - Helm chart for Kubernetes deployment
-- **Agency-agents lifecycle management**: full update workflow with automatic contract validation
-- **Role-fidelity certification**: guaranteed provenance chain for every agent's role specification
+- Agency-agents lifecycle management: full update workflow
+- Role-fidelity certification: guaranteed provenance chain
 
 ---
 
@@ -233,3 +249,4 @@
 - **Marketplace**: community role definitions
 - **Hermes-native mode**: integrate directly with Hermes Agent gateway
 - **Multi-project orchestration**: coordinate across multiple repositories
+- **AI onboarding provider**: LLM-backed team recommendation (removed from v0.4 scope)

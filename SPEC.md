@@ -8,18 +8,15 @@ Hermes Fleet is a self-contained CLI tool that generates secure, role-based Herm
 
 ---
 
-## 2. Core Pillars
+## 2. The Pillar: Isolation
 
-Hermes Fleet gives every agent a role to preserve, a boundary it cannot
-cross, and a completion contract it must satisfy.
+Hermes Fleet is built on one non-negotiable principle: **every agent is isolated**.
 
-These three non-negotiable pillars govern all design decisions and are
-grounded in four design foundation sources, documented in
-`DESIGN_FOUNDATIONS.md`. Foundations are locked via `foundation.lock.yaml`
-and updated through a strict proposal → impact analysis → regression test
-→ human approval → version bump process.
+No agent can see another agent's memory, files, network, or secrets. No agent can talk to another agent directly. Even the user cannot talk to sub-agents directly. Every message, every piece of data, every network request must pass through **the orchestrator** — the sole entity that holds all the keys.
 
-### 2.1 Role — Who the agent is
+From this single pillar, four facets emerge.
+
+### 2.1 Role — Who lives in each room
 
 *Key question: "Who is this agent, and what should it do?"*
 
@@ -39,7 +36,7 @@ This ensures traceability from upstream role definition to fleet agent identity.
 **Role artifacts**: SOUL.md, agency-agents lock, provenance metadata,
 identity drift self-checks.
 
-### 2.2 Boundary — What the agent can and cannot do
+### 2.2 Boundary — The walls of the room
 
 *Key question: "What can this agent do, and what is off-limits?"*
 
@@ -50,11 +47,13 @@ boundary is enforced by policy.yaml and Docker.
 - Permission boundaries are expressed in **policy.yaml** — machine-readable and testable.
 - The runtime boundary is the **container**, not the prompt.
 - Isolation must be verifiable through automated checks.
+- Sub-agents default to `network: none`. Orchestrator sets policy at composition time.
+- Temporary network exceptions: agent → orchestrator → user approval → time-limited grant → auto-revoke.
 
 **Boundary artifacts**: policy.yaml, Docker Compose, safe-defaults validator,
 permission presets.
 
-### 2.3 Completion — When work is truly done
+### 2.3 Completion — How work passes between rooms
 
 *Key question: "Is the work really done, and can the next person pick it up?"*
 
@@ -69,6 +68,29 @@ Done = output + verification + record + handoff.
 
 **Completion artifacts**: Handoff contracts, completion gates, kanban templates,
 handoff validation rules.
+
+### 2.4 Orchestrator — The only one who opens doors
+
+The orchestrator is not a separate pillar. It is the runtime agent that can cross isolation boundaries — the sole communication channel between any two entities in the fleet.
+
+- It assigns tasks to sub-agents. They execute in isolation.
+- It receives completed work. Verifies. Aggregates.
+- It reports to the user. The user approves or redirects.
+- It reassigns. The cycle continues.
+- If a sub-agent needs temporary network access, it requests the orchestrator. The orchestrator asks the user. User grants a time-limited exception. Isolation is restored automatically on expiry.
+
+Interaction model:
+
+```
+Agent ──task complete──→ Orchestrator (verify + aggregate)
+                           Orchestrator ──report──→ User
+                           User ──approve or redirect──→ Orchestrator
+                           Orchestrator ──next task or reassign──→ Agent
+```
+
+- Sub-agents never contact the user directly. The orchestrator is the sole intermediary.
+- No per-agent approval gates. No approval thresholds.
+- Policy violations are handled by policy.yaml enforcement, not by user approval.
 
 > **Implemented in v0.3**: Container lifecycle commands (up/down/status/logs/restart)
 > and handoff contract required_fields validation.

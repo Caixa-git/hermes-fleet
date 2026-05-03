@@ -9,10 +9,11 @@
 
 ## 1. Purpose
 
-Hermes Fleet gives every agent a role to preserve, a boundary it cannot
-cross, and a completion contract it must satisfy. These three pillars —
-**Role**, **Boundary**, **Completion** — are grounded in four academic and
-standards-based foundation sources documented below.
+Hermes Fleet is built on one non-negotiable principle: **every agent is isolated**.
+
+No agent can see another agent's memory, files, network, or secrets. No agent can talk to another agent directly. Even the user cannot talk to sub-agents directly. Every message, every piece of data, every network request must pass through **the orchestrator** — the sole entity that holds all the keys.
+
+From this single pillar, four facets emerge — **Role**, **Boundary**, **Completion**, **Orchestrator** — grounded in four academic and standards-based foundation sources documented below.
 
 Team composition must be **deterministic** and **grounded**.
 The same input, the same locked foundation ref, the same agency-agents ref,
@@ -91,6 +92,7 @@ and Control in a Distributed Problem Solver" (IEEE Trans. Computers, 1980).
 | Completion | **Task contract** | Every task between agents is a formal contract with required inputs, required outputs, and validation rules. |
 | Completion | **Manager-contractor assignment** | The orchestrator acts as manager. Task contracts define who assigns (orchestrator), who executes (contractor), and who reviews (reviewer/security). |
 | Completion | **Structured reporting** | Handoff notes follow a fixed template with role-specific required fields. Completion gates validate that reporting is complete before the task is delivered. |
+| Completion | **Human verification** | In runtime (v0.5+), the orchestrator aggregates sub-agent results and presents them to the user. User approval is the final completion gate. The orchestrator is the CNP manager extended with a human principal. |
 
 ---
 
