@@ -374,6 +374,19 @@ def validate_contract_cross_references(
     if handoff_contracts is not None:
         all_role_ids = set(roles_dict.keys())
         for hc_id, hc in handoff_contracts.items():
+            # v0.3: every handoff contract must define at least one required_field
+            check_name = f"handoff:{hc_id}.required_fields"
+            if not hc.required_fields:
+                results.append(
+                    CheckResult(
+                        "failed",
+                        check_name,
+                        f"Handoff contract '{hc_id}' has no required_fields — "
+                        f"at least one field is required for runtime validation",
+                    )
+                )
+            else:
+                results.append(CheckResult("passed", check_name))
             for r in hc.from_roles:
                 check_name = f"handoff:{hc_id}.from_role:{r}"
                 if r in all_role_ids:

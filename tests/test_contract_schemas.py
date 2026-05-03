@@ -410,6 +410,64 @@ class TestCrossReferenceValidation:
         assert any("alien-role" in r.message for r in failures)
 
 
+class TestHandoffRequiredFieldsValidation:
+    """v0.3: Every handoff contract must define at least one required_field."""
+
+    def test_handoff_with_required_fields_passes(self):
+        """Handoff contract with required_fields should pass validation."""
+        from hermes_fleet.contracts import (
+            HandoffContract,
+            RoleContract,
+            validate_contract_cross_references,
+        )
+        hc = HandoffContract(
+            id="valid-handoff",
+            from_roles=["orchestrator"],
+            allowed_next_roles=["reviewer"],
+            required_fields=["summary", "status"],
+        )
+        role = RoleContract(
+            id="orchestrator", name="O", description="", mission="",
+            non_goals="", permission_preset="p", allowed_tasks=["x"],
+            handoff_required_outputs=["s"], completion_gates_required=["g"],
+        )
+        results = validate_contract_cross_references(
+            teams=[], roles=[role], known_presets=["p"],
+            handoff_contracts={hc.id: hc},
+        )
+        failures = [r for r in results if r.status == "failed"]
+        required_field_failures = [r for r in failures if "required_fields" in r.check]
+        assert len(required_field_failures) == 0, \
+            f"Handoff with required_fields should not fail: {required_field_failures}"
+
+    def test_handoff_without_required_fields_fails(self):
+        """Handoff contract without required_fields should fail validation."""
+        from hermes_fleet.contracts import (
+            HandoffContract,
+            RoleContract,
+            validate_contract_cross_references,
+        )
+        hc = HandoffContract(
+            id="bad-handoff",
+            from_roles=["orchestrator"],
+            allowed_next_roles=["reviewer"],
+            required_fields=[],
+        )
+        role = RoleContract(
+            id="orchestrator", name="O", description="", mission="",
+            non_goals="", permission_preset="p", allowed_tasks=["x"],
+            handoff_required_outputs=["s"], completion_gates_required=["g"],
+        )
+        results = validate_contract_cross_references(
+            teams=[], roles=[role], known_presets=["p"],
+            handoff_contracts={hc.id: hc},
+        )
+        failures = [r for r in results if r.status == "failed"]
+        required_field_failures = [r for r in failures if "required_fields" in r.check]
+        assert len(required_field_failures) >= 1
+        assert any("bad-handoff" in r.message for r in required_field_failures)
+
+
 # ──────────────────────────────────────────────
 # FleetConfig Contract Tests
 # ──────────────────────────────────────────────

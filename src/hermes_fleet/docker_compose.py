@@ -92,6 +92,14 @@ def generate_docker_compose(
                     }
                 }
             },
+            "healthcheck": {
+                "test": ["CMD-SHELL", "pgrep -f 'hermes' || exit 1"],
+                "interval": "30s",
+                "timeout": "10s",
+                "retries": 3,
+                "start_period": "40s",
+            },
+            "restart": "unless-stopped",
         }
 
         services[agent_id] = service

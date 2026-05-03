@@ -872,6 +872,120 @@ def customize_resources(
     console.print(f"  Memory: {resources.get('default_memory', '512M')}")
 
 
+@app.command()
+def up(
+    detach: bool = typer.Option(
+        True, "--detach/--attach", help="Run in background (default: detach)"
+    ),
+):
+    """Start the fleet (docker compose up)."""
+    from hermes_fleet.runner import up as runner_up
+
+    result = runner_up(Path.cwd(), detach=detach)
+    if result["success"]:
+        console.print(f"[green]✓ {result['message']}[/green]")
+        if result["details"]:
+            console.print(result["details"])
+    else:
+        console.print(f"[red]✗ {result['message']}[/red]")
+        if result["details"]:
+            console.print(f"[dim]{result['details']}[/dim]")
+        raise typer.Exit(1)
+
+
+@app.command()
+def down(
+    remove_volumes: bool = typer.Option(
+        False, "--volumes", "-v", help="Remove named volumes"
+    ),
+):
+    """Stop the fleet (docker compose down)."""
+    from hermes_fleet.runner import down as runner_down
+
+    result = runner_down(Path.cwd(), remove_volumes=remove_volumes)
+    if result["success"]:
+        console.print(f"[green]✓ {result['message']}[/green]")
+        if result["details"]:
+            console.print(result["details"])
+    else:
+        console.print(f"[red]✗ {result['message']}[/red]")
+        if result["details"]:
+            console.print(f"[dim]{result['details']}[/dim]")
+        raise typer.Exit(1)
+
+
+@app.command()
+def status():
+    """Check fleet container status."""
+    from rich.table import Table
+    from hermes_fleet.runner import status as runner_status
+
+    result = runner_status(Path.cwd())
+    if not result["success"]:
+        console.print(f"[red]✗ {result['message']}[/red]")
+        raise typer.Exit(1)
+
+    containers = result.get("containers", [])
+    if not containers:
+        console.print("[yellow]No containers found. Is the fleet running?[/yellow]")
+        return
+
+    table = Table(title=f"Fleet Status — {result['message']}")
+    table.add_column("Container", style="cyan")
+    table.add_column("Status", style="white")
+    table.add_column("State", style="yellow")
+
+    for c in containers:
+        state_style = "green" if c["state"] == "running" else "red"
+        table.add_row(c["name"], c["status"], f"[{state_style}]{c['state']}[/{state_style}]")
+
+    console.print(table)
+
+
+@app.command()
+def logs(
+    agent: str = typer.Argument(
+        ..., help="Agent/service ID (e.g. 'orchestrator', 'reviewer')"
+    ),
+    tail: int = typer.Option(
+        100, "--tail", "-t", help="Number of lines to show from the end"
+    ),
+):
+    """Show logs for a specific agent container."""
+    from hermes_fleet.runner import logs as runner_logs
+
+    result = runner_logs(Path.cwd(), agent, tail=tail)
+    if result["success"]:
+        console.print(f"[bold]{result['message']}[/bold]")
+        console.print(result["logs"] if result["logs"] else "[dim](no output)[/dim]")
+    else:
+        console.print(f"[red]✗ {result['message']}[/red]")
+        if result["logs"]:
+            console.print(result["logs"])
+        raise typer.Exit(1)
+
+
+@app.command()
+def restart(
+    agent: str = typer.Argument(
+        ..., help="Agent/service ID to restart (e.g. 'orchestrator')"
+    ),
+):
+    """Restart a specific agent container."""
+    from hermes_fleet.runner import restart as runner_restart
+
+    result = runner_restart(Path.cwd(), agent)
+    if result["success"]:
+        console.print(f"[green]✓ {result['message']}[/green]")
+        if result["details"]:
+            console.print(result["details"])
+    else:
+        console.print(f"[red]✗ {result['message']}[/red]")
+        if result["details"]:
+            console.print(f"[dim]{result['details']}[/dim]")
+        raise typer.Exit(1)
+
+
 def main():
     """Entry point for the CLI."""
     app()

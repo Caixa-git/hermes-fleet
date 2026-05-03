@@ -127,3 +127,21 @@ class TestDockerComposeGeneration:
             assert "cpus" in limits, f"Service '{svc_name}' missing CPU limit"
             assert "memory" in limits, f"Service '{svc_name}' missing memory limit"
 
+    # ── v0.3: Health checks and restart policy ───────────────────────────
+
+    def test_all_services_have_healthcheck(self, general_dev_compose):
+        """Every service must have a healthcheck configuration."""
+        for svc_name, svc in general_dev_compose.get("services", {}).items():
+            hc = svc.get("healthcheck", {})
+            assert hc, f"Service '{svc_name}' missing healthcheck"
+            assert "test" in hc, f"Service '{svc_name}' healthcheck missing test command"
+            assert hc.get("interval") == "30s"
+            assert hc.get("retries") == 3
+
+    def test_all_services_have_restart_policy(self, general_dev_compose):
+        """Every service must have a restart policy."""
+        for svc_name, svc in general_dev_compose.get("services", {}).items():
+            restart = svc.get("restart", "")
+            assert restart, f"Service '{svc_name}' missing restart policy"
+            assert restart == "unless-stopped"
+
