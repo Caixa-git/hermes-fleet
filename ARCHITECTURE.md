@@ -4,6 +4,16 @@
 
 Hermes Fleet is a **config generator and validator** for multi-agent Hermes Agent teams. It reads team and role definitions, applies safe-default templates, and outputs complete team configurations ready for deployment.
 
+It operates in two modes:
+
+| Mode | Input | Output |
+|------|-------|--------|
+| **New Project** | User goal text | Generated team config in `.fleet/generated/` |
+| **Existing Repo (Fleet Mode)** | GitHub repo URL + goal | Fleeted repo + team + first issue |
+
+This document covers the New Project architecture. See
+`REPO_FLEET_MODE.md` for the Fleet Mode design.
+
 ```
 User goal text
       │
@@ -235,6 +245,8 @@ Handoff between agents is not a generic message — it is a **role-specific cont
 
 ## Future Architecture (Post-v0.1)
 
+### Fleet Runtime (v0.3+)
+
 ```
                      ┌──────────────────┐
                      │  Fleet Runtime   │
@@ -283,6 +295,45 @@ Key rules:
   - Isolation: policy.yaml and Docker boundaries are defined.
   - Handoff: Role-specific handoff requirements exist.
 - If an upstream update breaks a contract, the compiler blocks promotion and reports the issue.
+
+---
+
+### Fleet Mode Architecture (v0.5+)
+
+See `REPO_FLEET_MODE.md` for the complete design. In brief:
+
+```
+Source Repo (read-only)
+    │ clone
+    ▼
+┌─────────────────────┐
+│  Fingerprint Engine │──► .fleet/fingerprint.yaml
+└─────────────────────┘         (lang, deps, CI, risk flags)
+    │
+    ▼
+┌─────────────────────┐
+│  Planner            │──► Team Proposal (fingerprint + goal)
+└─────────────────────┘
+    │
+    ▼
+┌─────────────────────┐
+│  GitHub API Layer   │──► Create fleeted repo
+│  (Fleet Orchestrator)│──► Open first issue
+└─────────────────────┘   │
+                          ▼
+                   PR-based agent workflow
+                   (issue → branch → commit → PR → merge gate)
+```
+
+The Fleet Mode adds three new components:
+
+1. **Fingerprint Engine** — analyzes source repo to produce
+   `.fleet/fingerprint.yaml` with language, complexity, security posture,
+   and risk flags.
+2. **GitHub API Layer** — creates the fleeted repo, manages issues,
+   branches, and PRs via GitHub API.
+3. **Merge Gate** — classifies each PR by risk level and decides
+   whether to auto-merge or request human approval.
 
 ---
 
