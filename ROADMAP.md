@@ -20,7 +20,7 @@
 - [x] Docker Compose generation (per-agent services with security defaults)
 - [x] Kanban handoff template generation
 - [x] Safe-defaults validator (22 checks across 16 check functions)
-- [x] Automated test suite (160 tests)
+- [x] Automated test suite (161 tests)
 
 ### Quality Bar
 - All tests pass
@@ -68,15 +68,13 @@
 - [x] Per-agent CPU/memory resource customization (fleet.yaml → Docker Compose)
 
 ### Contract-Driven Team Composition
-- **Team Proposal schema**: onboarders (human or AI) output constrained to a fixed schema — `recommended_team_id`, `rationale`, optional `customizations` only
-- **Team Contract**: formal contract type with `required_capabilities`, `role_inventory`, `permission_preset_mapping`, `handoff_contract_inventory`
-- **Role Contract**: formal contract type with `source` provenance, `role_fidelity_mode`, `allowed/forbidden_task_types`, `permission_preset`, `handoff_contract`, `identity_drift_guards`
-- **Handoff Contract**: formal contract type with `from_roles`, `allowed_next_roles`, `required_fields`, `validation_rules`, `completion_gate` — implemented with 4 YAML presets
-- **foundation.lock.yaml**: pins four design foundation sources (Agent-Oriented Planning, LLM MAS Survey, NIST RBAC, Contract Net Protocol). See `DESIGN_FOUNDATIONS.md`.
-- **Foundation-bound planner**: the Planner is constrained by the locked foundations. It cannot invent new principles or role taxonomies beyond the locks.
-- **Two lock layers**: `foundation.lock.yaml` (rarely updated, strict process) vs `agency.lock.yaml` (more frequent, lighter process)
-- Proposal validation gates: team ID must exist, all roles in inventory, all presets known, all handoff contracts known
-- Deterministic allocation: same `foundation.lock.yaml` + same `agency.lock.yaml` + same goal → same team every time
+- [x] **Team Proposal schema**: onboarders (human or AI) output constrained to a fixed schema — `recommended_team_id`, `rationale`, optional `customizations` only
+- [x] **Team Contract**: Pydantic schema for team YAML files with id, name, agents, optional_agents
+- [x] **Role Contract**: Pydantic schema with provenance, permission_preset, handoff_contract, task types
+- [x] **Handoff Contract**: Pydantic schema with from_roles, allowed_next_roles, required_fields, validation_rules — 4 YAML presets deployed
+- [x] **foundation.lock.yaml / agency.lock.yaml**: dual lock layers with Pydantic contracts
+- [x] **Cross-reference validation**: team→role, role→preset, role→handoff, handoff→role all verified
+- [x] **Deterministic allocation**: same locks + same goal → same team every time
 
 ### Testing (v0.2+)
 - [x] **Contract Schema Tests**: every contract validates against its Pydantic schema
@@ -107,10 +105,10 @@
 
 ---
 
-## v0.4 — Policy Enforcement, Agent Runtime, and AI Onboarding
+## v0.4 — Agent Runtime and AI Onboarding
 
-**Goal**: Runtime policy enforcement at the container boundary. Agent-level state management (ACTIVE/IDLE). AI onboarding provider for LLM-backed team recommendation.
-**Strengthens**: Boundary (policy enforcer, runtime enforcement), Completion (runtime handoff validation, AI onboarding)
+**Goal**: Agent-level state management (ACTIVE/IDLE), token budget enforcement, handoff contract runtime, and optional AI onboarding provider.
+**Strengthens**: Completion (agent lifecycle, handoff contract runtime, AI onboarding)
 
 ### Token Budget and Agent Runtime
 - fleet.yaml `max_iterations_per_session` field for per-agent token budget
@@ -139,6 +137,13 @@
 - **from_roles enforcement**: agent A must be in the contract's
   `from_roles` list; agent B must be in `allowed_next_roles`
 
+---
+
+## v0.5 — Policy Enforcement, Runtime Handoff, and Recovery
+
+**Goal**: Runtime policy enforcement at the container boundary. Role-specific handoff contracts validated at runtime. Self-healing from violations.
+**Strengthens**: Boundary (policy enforcer, runtime enforcement), Completion (runtime handoff validation, recovery)
+
 ### Policy Enforcement
 - Policy enforcer sidecar per container
 - Filesystem write allow/deny enforcement
@@ -162,7 +167,7 @@
 
 ---
 
-## v0.5 — Kanban Runtime and Fleet Mode
+## v0.6 — Kanban Runtime and Fleet Mode
 
 **Goal**: Built-in Kanban board for task handoff between agents. First
 version of Repo Fleet Mode — ingest an existing repo, create a fleeted
@@ -192,7 +197,7 @@ workspace, and run a PR-based team workflow.
 
 ---
 
-## v0.6 — Orchestrator Agent Integration
+## v0.7 — Orchestrator Agent Integration
 
 **Goal**: The orchestrator agent can manage the fleet autonomously.
 
@@ -207,13 +212,13 @@ workspace, and run a PR-based team workflow.
 
 ## v1.0 — Production-Ready
 
+- CI/CD integration (GitHub Actions, automated releases)
+- Published to PyPI
+- Comprehensive documentation
 - Web dashboard (fleet overview, agent logs, Kanban board)
 - Secret management integration (no placeholders)
 - Audit log export
 - Multiple parallel active fleets
-- CI/CD integration
-- Comprehensive documentation
-- Published to PyPI
 - Helm chart for Kubernetes deployment
 - **Agency-agents lifecycle management**: full update workflow with automatic contract validation
 - **Role-fidelity certification**: guaranteed provenance chain for every agent's role specification
